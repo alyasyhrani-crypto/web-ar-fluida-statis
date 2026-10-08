@@ -1,0 +1,2277 @@
+<!DOCTYPE html>
+<html lang="id" class="h-full bg-slate-900 text-slate-100">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LKPD Digital Interaktif - Fluida Statis 3D & Web AR</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0f9ff',
+              100: '#e0f2fe',
+              400: '#38bdf8',
+              500: '#0ea5e9',
+              600: '#0284c7',
+              700: '#0369a1',
+              800: '#075985',
+              900: '#0c4a6e',
+            },
+            accent: {
+              400: '#c084fc',
+              500: '#a855f7',
+              600: '#9333ea',
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <!-- Three.js Library & OrbitControls -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+  <!-- Custom Styles -->
+  <style>
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: #0f172a; }
+    ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #0284c7; }
+
+    /* Canvas styling */
+    .sim-canvas {
+      width: 100% !important;
+      height: 100% !important;
+      display: block;
+      touch-action: none;
+    }
+
+    /* Glassmorphism panel */
+    .glass-panel {
+      background: rgba(15, 23, 42, 0.75);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+  </style>
+</head>
+<body class="h-full flex flex-col font-sans overflow-x-hidden antialiased selection:bg-brand-500 selection:text-white">
+
+  <!-- HEADER & PROGRESS BAR -->
+  <header class="sticky top-0 z-50 glass-panel border-b border-slate-800/80 shadow-lg">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-16">
+        <!-- Brand / Mobile Drawer Toggle -->
+        <div class="flex items-center space-x-3">
+          <button id="sidebarToggleBtn" class="lg:hidden p-2 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 focus:outline-none">
+            <i class="fa-solid fa-bars text-xl"></i>
+          </button>
+          <div class="flex items-center space-x-2">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 via-cyan-500 to-accent-500 flex items-center justify-center shadow-lg shadow-brand-500/30">
+              <i class="fa-solid fa-atom text-white text-xl animate-spin-slow"></i>
+            </div>
+            <div>
+              <span class="text-xs font-bold uppercase tracking-wider text-cyan-400 block">LKPD Digital Interaktif</span>
+              <span class="text-sm sm:text-base font-extrabold text-white tracking-tight">FLUIDA STATIS</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Progress Tracker Bar -->
+        <div class="hidden sm:flex items-center space-x-4 flex-1 max-w-xs mx-6">
+          <div class="w-full bg-slate-800 rounded-full h-3 p-0.5 border border-slate-700/50">
+            <div id="topProgressBar" class="bg-gradient-to-r from-cyan-500 via-brand-500 to-accent-500 h-2 rounded-full transition-all duration-500 ease-out" style="width: 0%"></div>
+          </div>
+          <span id="topProgressText" class="text-xs font-bold text-cyan-300 min-w-[40px]">0%</span>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="flex items-center space-x-2">
+          <button id="saveDataBtn" title="Simpan Progres" class="flex items-center space-x-1.5 px-3 py-1.5 bg-brand-600 hover:bg-brand-500 text-white rounded-lg text-xs font-semibold shadow-md shadow-brand-600/20 transition-all">
+            <i class="fa-solid fa-floppy-disk"></i>
+            <span class="hidden sm:inline">Simpan</span>
+          </button>
+          <button id="resetDataBtn" title="Reset Data" class="flex items-center space-x-1.5 px-3 py-1.5 bg-slate-800 hover:bg-rose-900/60 hover:text-rose-300 text-slate-300 rounded-lg text-xs font-semibold border border-slate-700 transition-all">
+            <i class="fa-solid fa-rotate-left"></i>
+            <span class="hidden sm:inline">Reset</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN WRAPPER WITH SIDEBAR & CONTENT -->
+  <div class="flex-1 flex overflow-hidden">
+
+    <!-- SIDEBAR NAV -->
+    <aside id="sidebar" class="fixed inset-y-0 left-0 z-40 w-64 bg-slate-900/95 border-r border-slate-800 transform -translate-x-full lg:translate-x-0 transition-transform duration-300 ease-in-out lg:static flex flex-col pt-16 lg:pt-0">
+      <div class="p-4 flex-1 overflow-y-auto space-y-1">
+        <div class="px-3 py-2 text-xs font-bold text-slate-400 uppercase tracking-wider">Navigasi LKPD</div>
+        
+        <button data-target="beranda" class="nav-link w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl text-slate-300 hover:text-white hover:bg-slate-800/80 transition-all text-sm font-medium active text-cyan-400 bg-brand-900/40 border border-brand-500/30">
+          <i class="fa-solid fa-house text-cyan-400 w-5"></i>
+          <span>Beranda</span>
+        </button>
+
+        <button data-target="tujuan" class="nav-link w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl text-slate-300 hover:text-white hover:bg-slate-800/80 transition-all text-sm font-medium">
+          <i class="fa-solid fa-bullseye text-indigo-400 w-5"></i>
+          <span>Tujuan Pembelajaran</span>
+        </button>
+
+        <button data-target="petunjuk" class="nav-link w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl text-slate-300 hover:text-white hover:bg-slate-800/80 transition-all text-sm font-medium">
+          <i class="fa-solid fa-book-open text-emerald-400 w-5"></i>
+          <span>Petunjuk Penggunaan</span>
+        </button>
+
+        <div class="pt-4 px-3 py-2 text-xs font-bold text-slate-400 uppercase tracking-wider">Modul Problem-Based</div>
+
+        <button data-target="pertemuan1" class="nav-link w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-slate-300 hover:text-white hover:bg-slate-800/80 transition-all text-sm font-medium group">
+          <div class="flex items-center space-x-3">
+            <i class="fa-solid fa-bottle-droplet text-sky-400 w-5"></i>
+            <div class="text-left">
+              <div class="text-xs text-sky-400 font-semibold">Pertemuan 1</div>
+              <div>Tekanan Hidrostatis</div>
+            </div>
+          </div>
+          <span class="p1-status text-xs px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700">0%</span>
+        </button>
+
+        <button data-target="pertemuan2" class="nav-link w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-slate-300 hover:text-white hover:bg-slate-800/80 transition-all text-sm font-medium group">
+          <div class="flex items-center space-x-3">
+            <i class="fa-solid fa-egg text-amber-400 w-5"></i>
+            <div class="text-left">
+              <div class="text-xs text-amber-400 font-semibold">Pertemuan 2</div>
+              <div>Hukum Archimedes</div>
+            </div>
+          </div>
+          <span class="p2-status text-xs px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700">0%</span>
+        </button>
+
+        <button data-target="pertemuan3" class="nav-link w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-slate-300 hover:text-white hover:bg-slate-800/80 transition-all text-sm font-medium group">
+          <div class="flex items-center space-x-3">
+            <i class="fa-solid fa-truck-monster text-purple-400 w-5"></i>
+            <div class="text-left">
+              <div class="text-xs text-purple-400 font-semibold">Pertemuan 3</div>
+              <div>Hukum Pascal</div>
+            </div>
+          </div>
+          <span class="p3-status text-xs px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700">0%</span>
+        </button>
+
+        <div class="pt-4 px-3 py-2 text-xs font-bold text-slate-400 uppercase tracking-wider">Evaluasi Final</div>
+
+        <button data-target="refleksi" class="nav-link w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl text-slate-300 hover:text-white hover:bg-slate-800/80 transition-all text-sm font-medium">
+          <i class="fa-solid fa-pen-to-square text-rose-400 w-5"></i>
+          <span>Refleksi Akhir</span>
+        </button>
+      </div>
+
+      <!-- Author Footer Card -->
+      <div class="p-4 border-t border-slate-800/80 bg-slate-950/40">
+        <div class="flex items-center space-x-3">
+          <div class="w-8 h-8 rounded-full bg-gradient-to-br from-brand-400 to-accent-600 flex items-center justify-center text-white font-bold text-xs">
+            AS
+          </div>
+          <div class="text-xs">
+            <div class="font-semibold text-slate-200">Alya Syahrani</div>
+            <div class="text-slate-400">Penyusun LKPD Fisika</div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Overlay for mobile sidebar -->
+    <div id="sidebarOverlay" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-30 hidden lg:hidden"></div>
+
+    <!-- MAIN VIEW CONTAINER -->
+    <main class="flex-1 overflow-y-auto bg-slate-950 p-4 sm:p-6 lg:p-8 relative">
+
+      <!-- VIEW 1: BERANDA -->
+      <section id="view-beranda" class="view-section space-y-8 max-w-5xl mx-auto">
+        <!-- Hero Banner -->
+        <div class="relative overflow-hidden rounded-3xl bg-gradient-to-r from-brand-900 via-slate-900 to-indigo-950 p-6 sm:p-10 border border-brand-500/20 shadow-2xl">
+          <div class="absolute -right-10 -bottom-10 w-72 h-72 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none"></div>
+          <div class="absolute right-1/3 -top-10 w-60 h-60 bg-accent-500/10 rounded-full blur-3xl pointer-events-none"></div>
+          
+          <div class="relative z-10 max-w-2xl space-y-4">
+            <span class="inline-flex items-center space-x-2 px-3 py-1 rounded-full text-xs font-semibold bg-cyan-500/10 text-cyan-300 border border-cyan-500/30">
+              <i class="fa-solid fa-cube text-cyan-400"></i>
+              <span>Problem-Based Learning & Web AR 3D</span>
+            </span>
+            <h1 class="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-white tracking-tight leading-tight">
+              LKPD Digital Interaktif <br/>
+              <span class="bg-gradient-to-r from-cyan-400 via-sky-300 to-accent-400 bg-clip-text text-transparent">FLUIDA STATIS</span>
+            </h1>
+            <p class="text-slate-300 text-sm sm:text-base leading-relaxed">
+              “Memecahkan Masalah Fluida melalui Simulasi 3D dan Web AR. Selidiki fenomena fluida melalui masalah nyata, simulasi interaktif, Web AR, dan data hasil pengamatan nyata.”
+            </p>
+            <div class="pt-2 flex flex-wrap gap-4">
+              <button onclick="switchView('pertemuan1')" class="px-6 py-3 rounded-xl bg-gradient-to-r from-brand-500 to-cyan-500 hover:from-brand-600 hover:to-cyan-600 text-white font-bold text-sm shadow-lg shadow-cyan-500/25 transition-all transform hover:-translate-y-0.5 flex items-center space-x-2">
+                <span>MULAI LKPD</span>
+                <i class="fa-solid fa-arrow-right"></i>
+              </button>
+              <button onclick="switchView('petunjuk')" class="px-6 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-sm border border-slate-700 transition-all">
+                <i class="fa-solid fa-circle-info mr-2"></i>Petunjuk
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Student Identity Form Card -->
+        <div class="glass-panel rounded-2xl p-6 sm:p-8 space-y-6 shadow-xl border border-slate-800">
+          <div class="flex items-center space-x-3 border-b border-slate-800 pb-4">
+            <div class="w-10 h-10 rounded-xl bg-indigo-500/20 flex items-center justify-center text-indigo-400">
+              <i class="fa-solid fa-id-card text-xl"></i>
+            </div>
+            <div>
+              <h2 class="text-lg font-bold text-white">Identitas Peserta Didik</h2>
+              <p class="text-xs text-slate-400">Isi data kelompok Anda sebelum memulai penyelidikan fisika.</p>
+            </div>
+          </div>
+
+          <form id="identityForm" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1.5">Nama Siswa / Ketua</label>
+              <input type="text" id="idNama" placeholder="Masukkan nama Anda..." class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1.5">Kelas</label>
+              <input type="text" id="idKelas" placeholder="Contoh: XI MIPA 1" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1.5">Kelompok</label>
+              <input type="text" id="idKelompok" placeholder="Contoh: Kelompok 3 (Pascal)" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1.5">Guru Pengampu</label>
+              <input type="text" id="idGuru" placeholder="Masukkan nama guru fisika..." class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all">
+            </div>
+            <div class="sm:col-span-2">
+              <label class="block text-xs font-semibold text-slate-300 mb-1.5">Anggota Kelompok</label>
+              <textarea id="idAnggota" rows="2" placeholder="Tuliskan nama anggota kelompok..." class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all resize-none"></textarea>
+            </div>
+            <div class="sm:col-span-2 flex justify-end">
+              <button type="submit" class="px-6 py-2.5 bg-brand-600 hover:bg-brand-500 text-white rounded-xl text-sm font-semibold shadow-lg shadow-brand-600/30 transition-all flex items-center space-x-2">
+                <i class="fa-solid fa-floppy-disk"></i>
+                <span>SIMPAN IDENTITAS</span>
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- 3 Topic Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <!-- Pertemuan 1 Card -->
+          <div class="glass-panel rounded-2xl p-6 border border-slate-800 hover:border-sky-500/50 transition-all group flex flex-col justify-between space-y-4">
+            <div class="space-y-3">
+              <div class="w-12 h-12 rounded-2xl bg-sky-500/20 text-sky-400 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">
+                <i class="fa-solid fa-bottle-droplet"></i>
+              </div>
+              <div>
+                <span class="text-xs font-bold text-sky-400 uppercase tracking-wider">Pertemuan 1</span>
+                <h3 class="text-lg font-bold text-white group-hover:text-sky-300 transition-colors">Tekanan Hidrostatis</h3>
+              </div>
+              <p class="text-xs text-slate-400 leading-relaxed">
+                Selidiki fenomena botol berlubang dan hubungan antara kedalaman air dengan besarnya tekanan hidrostatis serta kecepatan pancaran.
+              </p>
+            </div>
+            <button onclick="switchView('pertemuan1')" class="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-sky-600 text-sky-300 hover:text-white font-semibold text-xs border border-slate-700 hover:border-sky-500 transition-all flex items-center justify-center space-x-2">
+              <span>Buka Pertemuan 1</span>
+              <i class="fa-solid fa-arrow-right text-xs"></i>
+            </button>
+          </div>
+
+          <!-- Pertemuan 2 Card -->
+          <div class="glass-panel rounded-2xl p-6 border border-slate-800 hover:border-amber-500/50 transition-all group flex flex-col justify-between space-y-4">
+            <div class="space-y-3">
+              <div class="w-12 h-12 rounded-2xl bg-amber-500/20 text-amber-400 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">
+                <i class="fa-solid fa-egg"></i>
+              </div>
+              <div>
+                <span class="text-xs font-bold text-amber-400 uppercase tracking-wider">Pertemuan 2</span>
+                <h3 class="text-lg font-bold text-white group-hover:text-amber-300 transition-colors">Hukum Archimedes</h3>
+              </div>
+              <p class="text-xs text-slate-400 leading-relaxed">
+                Eksplorasi fenomena telur melayang/mengapung di larutan garam, hitung gaya ke atas ($F_A$), dan pengaruh massa jenis fluida.
+              </p>
+            </div>
+            <button onclick="switchView('pertemuan2')" class="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-amber-600 text-amber-300 hover:text-white font-semibold text-xs border border-slate-700 hover:border-amber-500 transition-all flex items-center justify-center space-x-2">
+              <span>Buka Pertemuan 2</span>
+              <i class="fa-solid fa-arrow-right text-xs"></i>
+            </button>
+          </div>
+
+          <!-- Pertemuan 3 Card -->
+          <div class="glass-panel rounded-2xl p-6 border border-slate-800 hover:border-purple-500/50 transition-all group flex flex-col justify-between space-y-4">
+            <div class="space-y-3">
+              <div class="w-12 h-12 rounded-2xl bg-purple-500/20 text-purple-400 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">
+                <i class="fa-solid fa-truck-monster"></i>
+              </div>
+              <div>
+                <span class="text-xs font-bold text-purple-400 uppercase tracking-wider">Pertemuan 3</span>
+                <h3 class="text-lg font-bold text-white group-hover:text-purple-300 transition-colors">Hukum Pascal</h3>
+              </div>
+              <p class="text-xs text-slate-400 leading-relaxed">
+                Analisis mekanisme sistem hidrolik, pembagian tekanan secara merata ke segala arah, dan cara gaya kecil mengangkat beban besar.
+              </p>
+            </div>
+            <button onclick="switchView('pertemuan3')" class="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-purple-600 text-purple-300 hover:text-white font-semibold text-xs border border-slate-700 hover:border-purple-500 transition-all flex items-center justify-center space-x-2">
+              <span>Buka Pertemuan 3</span>
+              <i class="fa-solid fa-arrow-right text-xs"></i>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- VIEW 2: TUJUAN PEMBELAJARAN -->
+      <section id="view-tujuan" class="view-section hidden space-y-6 max-w-4xl mx-auto">
+        <div class="glass-panel rounded-2xl p-6 sm:p-8 space-y-6 border border-slate-800">
+          <div class="flex items-center space-x-3 border-b border-slate-800 pb-4">
+            <div class="w-10 h-10 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-xl">
+              <i class="fa-solid fa-bullseye"></i>
+            </div>
+            <div>
+              <h2 class="text-xl font-bold text-white">Tujuan Pembelajaran</h2>
+              <p class="text-xs text-slate-400">Capaian kompetensi peserta didik setelah menyelesaikan modul LKPD ini.</p>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="p-4 rounded-xl bg-slate-900/80 border border-slate-800/80 flex space-x-3 items-start">
+              <span class="w-6 h-6 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">1</span>
+              <p class="text-xs text-slate-300 leading-relaxed">Menjelaskan konsep tekanan hidrostatis secara konseptual dan matematis.</p>
+            </div>
+            <div class="p-4 rounded-xl bg-slate-900/80 border border-slate-800/80 flex space-x-3 items-start">
+              <span class="w-6 h-6 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">2</span>
+              <p class="text-xs text-slate-300 leading-relaxed">Menganalisis hubungan kedalaman fluida dengan tekanan hidrostatis.</p>
+            </div>
+            <div class="p-4 rounded-xl bg-slate-900/80 border border-slate-800/80 flex space-x-3 items-start">
+              <span class="w-6 h-6 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">3</span>
+              <p class="text-xs text-slate-300 leading-relaxed">Menganalisis hubungan tekanan hidrostatis dengan kecepatan pancaran air.</p>
+            </div>
+            <div class="p-4 rounded-xl bg-slate-900/80 border border-slate-800/80 flex space-x-3 items-start">
+              <span class="w-6 h-6 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">4</span>
+              <p class="text-xs text-slate-300 leading-relaxed">Menjelaskan konsep gaya ke atas Archimedes pada benda terendam.</p>
+            </div>
+            <div class="p-4 rounded-xl bg-slate-900/80 border border-slate-800/80 flex space-x-3 items-start">
+              <span class="w-6 h-6 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">5</span>
+              <p class="text-xs text-slate-300 leading-relaxed">Menganalisis hubungan massa jenis fluida dengan keadaan benda (tenggelam, melayang, mengapung).</p>
+            </div>
+            <div class="p-4 rounded-xl bg-slate-900/80 border border-slate-800/80 flex space-x-3 items-start">
+              <span class="w-6 h-6 rounded-full bg-purple-500/20 text-purple-400 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">6</span>
+              <p class="text-xs text-slate-300 leading-relaxed">Menjelaskan prinsip Hukum Pascal pada sistem fluida tertutup.</p>
+            </div>
+            <div class="p-4 rounded-xl bg-slate-900/80 border border-slate-800/80 flex space-x-3 items-start">
+              <span class="w-6 h-6 rounded-full bg-purple-500/20 text-purple-400 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">7</span>
+              <p class="text-xs text-slate-300 leading-relaxed">Menganalisis hubungan gaya dan luas penampang pada sistem dongkrak hidrolik.</p>
+            </div>
+            <div class="p-4 rounded-xl bg-slate-900/80 border border-slate-800/80 flex space-x-3 items-start">
+              <span class="w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">8</span>
+              <p class="text-xs text-slate-300 leading-relaxed">Menggunakan data hasil simulasi 3D & Web AR untuk menyelesaikan permasalahan.</p>
+            </div>
+            <div class="p-4 rounded-xl bg-slate-900/80 border border-slate-800/80 flex space-x-3 items-start">
+              <span class="w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">9</span>
+              <p class="text-xs text-slate-300 leading-relaxed">Menyusun solusi pemecahan masalah berdasarkan konsep fisika teruji.</p>
+            </div>
+            <div class="p-4 rounded-xl bg-slate-900/80 border border-slate-800/80 flex space-x-3 items-start">
+              <span class="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">10</span>
+              <p class="text-xs text-slate-300 leading-relaxed">Mengomunikasikan hasil penyelesaian masalah secara terstruktur.</p>
+            </div>
+            <div class="p-4 rounded-xl bg-slate-900/80 border border-slate-800/80 flex space-x-3 items-start md:col-span-2">
+              <span class="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">11</span>
+              <p class="text-xs text-slate-300 leading-relaxed">Mengevaluasi proses dan hasil pemecahan masalah secara terperinci.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- VIEW 3: PETUNJUK PENGGUNAAN -->
+      <section id="view-petunjuk" class="view-section hidden space-y-6 max-w-4xl mx-auto">
+        <div class="glass-panel rounded-2xl p-6 sm:p-8 space-y-6 border border-slate-800">
+          <div class="flex items-center space-x-3 border-b border-slate-800 pb-4">
+            <div class="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xl">
+              <i class="fa-solid fa-book-open"></i>
+            </div>
+            <div>
+              <h2 class="text-xl font-bold text-white">Petunjuk Penggunaan LKPD</h2>
+              <p class="text-xs text-slate-400">Panduan langkah demi langkah penggunaan LKPD Digital dan Fitur Web AR.</p>
+            </div>
+          </div>
+
+          <ol class="space-y-3 text-xs text-slate-300 list-decimal list-inside leading-relaxed">
+            <li class="p-2 rounded-lg hover:bg-slate-900 transition-colors">Isi identitas diri dan kelompok pada halaman Beranda.</li>
+            <li class="p-2 rounded-lg hover:bg-slate-900 transition-colors">Pilih pertemuan materi fisika yang ingin dipelajari (Pertemuan 1, 2, atau 3).</li>
+            <li class="p-2 rounded-lg hover:bg-slate-900 transition-colors">Cermati Orientasi Masalah dan pertanyaan utama yang disajikan (Tahap 1 PBL).</li>
+            <li class="p-2 rounded-lg hover:bg-slate-900 transition-colors">Isi rumusan masalah dan prediksi awal sebelum menjalankan simulasi (Tahap 2 PBL).</li>
+            <li class="p-2 rounded-lg hover:bg-slate-900 transition-colors">Buka Simulasi 3D Interaktif atau Web AR (Tahap 3 PBL).</li>
+            <li class="p-2 rounded-lg hover:bg-slate-900 transition-colors">Jika menggunakan Web AR, izinkan akses kamera pada perangkat seluler Anda.</li>
+            <li class="p-2 rounded-lg hover:bg-slate-900 transition-colors">Arahkan kamera ke permukaan datar yang memiliki pencahayaan cukup.</li>
+            <li class="p-2 rounded-lg hover:bg-slate-900 transition-colors">Tempatkan objek 3D simulasi fisika di atas permukaan tersebut.</li>
+            <li class="p-2 rounded-lg hover:bg-slate-900 transition-colors">Gunakan gesture layar untuk memutar, memindahkan, atau memperbesar objek.</li>
+            <li class="p-2 rounded-lg hover:bg-slate-900 transition-colors">Jalankan simulasi dengan menekan tombol kontrol [MULAI/JEDA].</li>
+            <li class="p-2 rounded-lg hover:bg-slate-900 transition-colors">Ubah nilai variabel fisik melalui slider interaktif.</li>
+            <li class="p-2 rounded-lg hover:bg-slate-900 transition-colors">Amati perubahan fenomena, pergerakan fluida, dan grafik sensor secara real-time.</li>
+            <li class="p-2 rounded-lg hover:bg-slate-900 transition-colors">Catat angka data hasil pengamatan ke dalam tabel LKPD.</li>
+            <li class="p-2 rounded-lg hover:bg-slate-900 transition-colors">Gunakan rumus fisika untuk menghitung dan menganalisis data (Tahap 4 PBL).</li>
+            <li class="p-2 rounded-lg hover:bg-slate-900 transition-colors">Jawab pertanyaan analisis dan susun solusi akhir kelompok.</li>
+            <li class="p-2 rounded-lg hover:bg-slate-900 transition-colors">Presentasikan hasil karya kelompok Anda.</li>
+            <li class="p-2 rounded-lg hover:bg-slate-900 transition-colors">Lakukan evaluasi dan refleksi pembelajaran (Tahap 5 PBL).</li>
+          </ol>
+
+          <!-- AR Safety Box -->
+          <div class="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs flex space-x-3 items-start">
+            <i class="fa-solid fa-triangle-exclamation text-amber-400 text-lg shrink-0 mt-0.5"></i>
+            <div>
+              <strong class="font-bold block text-amber-300 mb-1">Catatan Keamanan Web AR & Fallback Mode:</strong>
+              Gunakan Web AR pada ruang yang aman, permukaan datar yang stabil, dan jangan mengarahkan kamera kepada orang lain. Jika perangkat Anda belum mendukung WebXR Hit-Test, aplikasi secara otomatis mengaktifkan <strong>Mode Canvas 3D Interaktif</strong> dengan kontrol gesture OrbitControls lengkap.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- VIEW 4: PERTEMUAN 1 (Tekanan Hidrostatis) -->
+      <section id="view-pertemuan1" class="view-section hidden space-y-8 max-w-5xl mx-auto">
+        <!-- PBL Banner Header -->
+        <div class="flex items-center justify-between bg-slate-900/90 p-4 rounded-2xl border border-sky-500/30">
+          <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-xl bg-sky-500/20 text-sky-400 flex items-center justify-center font-bold">P1</div>
+            <div>
+              <h2 class="text-base font-bold text-white">Tekanan Hidrostatis</h2>
+              <p class="text-xs text-sky-400 font-medium">"Pancaran Air Mana yang Paling Jauh?"</p>
+            </div>
+          </div>
+          <span class="px-3 py-1 rounded-full text-xs font-semibold bg-sky-500/20 text-sky-300 border border-sky-500/30">
+            Pertemuan 1 dari 3
+          </span>
+        </div>
+
+        <!-- TAHAP 1 -->
+        <div class="glass-panel rounded-2xl p-6 space-y-4 border border-slate-800">
+          <div class="flex items-center space-x-2 text-sky-400 text-xs font-bold uppercase tracking-wider">
+            <i class="fa-solid fa-1"></i>
+            <span>TAHAP 1: Orientasi Peserta Didik pada Masalah</span>
+          </div>
+          <h3 class="text-lg font-bold text-white">Fenomena Botol Berlubang Tiga</h3>
+          
+          <div class="p-4 rounded-xl bg-slate-900/90 border border-slate-800 text-xs text-slate-300 space-y-2 leading-relaxed">
+            <p>
+              Sebuah botol transparan berisi penuh air memiliki tiga buah lubang sensor di posisi vertikal berbeda:
+            </p>
+            <ul class="list-disc list-inside space-y-1 text-slate-400 pl-2">
+              <li><strong class="text-slate-200">Lubang A:</strong> Berada di posisi bagian atas botol.</li>
+              <li><strong class="text-slate-200">Lubang B:</strong> Berada di posisi bagian tengah botol.</li>
+              <li><strong class="text-slate-200">Lubang C:</strong> Berada di posisi bagian bawah botol.</li>
+            </ul>
+            <p>
+              Ketika ketiga lubang dibuka secara bersamaan, pancaran air dari lubang paling bawah (C) terlihat memancar lebih jauh daripada pancaran air dari lubang bagian tengah (B) maupun atas (A).
+            </p>
+          </div>
+
+          <div class="p-4 rounded-xl bg-sky-950/40 border border-sky-500/30 space-y-2">
+            <div class="font-bold text-xs text-sky-300 uppercase tracking-wide">Pertanyaan Masalah:</div>
+            <p class="text-xs text-slate-200 font-medium">“Mengapa pancaran air dari lubang yang berada lebih bawah dapat mencapai jarak horizontal yang lebih jauh?”</p>
+            <div class="font-bold text-xs text-cyan-400 uppercase tracking-wide pt-2">Tantangan Kelompok:</div>
+            <p class="text-xs text-slate-300">“Jika kamu ingin membuat pancaran air mencapai jarak sejauh mungkin, pada posisi manakah lubang sebaiknya dibuat dan bagaimana hubungan kedalaman dengan besarnya tekanan hidrostatis?”</p>
+          </div>
+        </div>
+
+        <!-- TAHAP 2 -->
+        <div class="glass-panel rounded-2xl p-6 space-y-6 border border-slate-800">
+          <div class="flex items-center space-x-2 text-sky-400 text-xs font-bold uppercase tracking-wider">
+            <i class="fa-solid fa-2"></i>
+            <span>TAHAP 2: Mengorganisasi Peserta Didik untuk Belajar</span>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">Apa yang diketahui?</label>
+              <textarea id="p1_diketahui" rows="3" placeholder="Tuliskan data atau informasi awal..." class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 transition-all resize-none"></textarea>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">Apa yang ingin diketahui?</label>
+              <textarea id="p1_ditanyakan" rows="3" placeholder="Tuliskan pertanyaan penelitian..." class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 transition-all resize-none"></textarea>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">Variabel berpengaruh?</label>
+              <textarea id="p1_variabel" rows="3" placeholder="Identifikasi variabel bebas/terikat..." class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 transition-all resize-none"></textarea>
+            </div>
+          </div>
+
+          <!-- Prediction Table -->
+          <div class="space-y-3">
+            <h4 class="text-xs font-bold text-slate-200 uppercase tracking-wide">Prediksi Kelompok Sebelum Simulasi:</h4>
+            <div class="overflow-x-auto">
+              <table class="w-full text-xs text-left text-slate-300 border-collapse">
+                <thead class="bg-slate-900 text-sky-400 border-b border-slate-800">
+                  <tr>
+                    <th class="p-3">Sensor</th>
+                    <th class="p-3">Prediksi Tekanan</th>
+                    <th class="p-3">Prediksi Kecepatan Pancaran</th>
+                    <th class="p-3">Prediksi Jarak Pancaran</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-800">
+                  <tr>
+                    <td class="p-3 font-semibold text-white">Sensor A (Atas)</td>
+                    <td class="p-2"><input type="text" id="p1_pred_p_a" placeholder="Kecil / Sedang / Besar" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-1.5 text-xs text-white"></td>
+                    <td class="p-2"><input type="text" id="p1_pred_v_a" placeholder="Lambat / Cepat" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-1.5 text-xs text-white"></td>
+                    <td class="p-2"><input type="text" id="p1_pred_x_a" placeholder="Dekat / Jauh" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-1.5 text-xs text-white"></td>
+                  </tr>
+                  <tr>
+                    <td class="p-3 font-semibold text-white">Sensor B (Tengah)</td>
+                    <td class="p-2"><input type="text" id="p1_pred_p_b" placeholder="Kecil / Sedang / Besar" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-1.5 text-xs text-white"></td>
+                    <td class="p-2"><input type="text" id="p1_pred_v_b" placeholder="Lambat / Cepat" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-1.5 text-xs text-white"></td>
+                    <td class="p-2"><input type="text" id="p1_pred_x_b" placeholder="Dekat / Jauh" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-1.5 text-xs text-white"></td>
+                  </tr>
+                  <tr>
+                    <td class="p-3 font-semibold text-white">Sensor C (Bawah)</td>
+                    <td class="p-2"><input type="text" id="p1_pred_p_c" placeholder="Kecil / Sedang / Besar" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-1.5 text-xs text-white"></td>
+                    <td class="p-2"><input type="text" id="p1_pred_v_c" placeholder="Lambat / Cepat" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-1.5 text-xs text-white"></td>
+                    <td class="p-2"><input type="text" id="p1_pred_x_c" placeholder="Dekat / Jauh" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-1.5 text-xs text-white"></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">Alasan Prediksi:</label>
+              <textarea id="p1_alasan_prediksi" rows="2" placeholder="Jelaskan alasan pemikiran awal kelompok Anda..." class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 transition-all resize-none"></textarea>
+            </div>
+          </div>
+
+          <!-- Concept Cards -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+            <div class="p-4 rounded-xl bg-gradient-to-br from-slate-900 to-sky-950/40 border border-sky-500/30 space-y-2">
+              <span class="text-xs font-bold text-sky-400 uppercase tracking-wider block">Rumus Tekanan Hidrostatis</span>
+              <div class="text-xl font-extrabold text-white font-mono">P = ρ · g · h</div>
+              <p class="text-xs text-slate-400">
+                P = Tekanan Hidrostatis (Pa)<br/>
+                ρ = Massa jenis air = 1000 kg/m³<br/>
+                g = Percepatan gravitasi = 9,8 m/s²<br/>
+                h = Kedalaman dari permukaan air (m)
+              </p>
+            </div>
+            <div class="p-4 rounded-xl bg-gradient-to-br from-slate-900 to-cyan-950/40 border border-cyan-500/30 space-y-2">
+              <span class="text-xs font-bold text-cyan-400 uppercase tracking-wider block">Rumus Kecepatan Pancaran (Torricelli)</span>
+              <div class="text-xl font-extrabold text-white font-mono">v = √(2 · g · h)</div>
+              <p class="text-xs text-slate-400">
+                v = Kecepatan pancaran air (m/s)<br/>
+                g = Percepatan gravitasi = 9,8 m/s²<br/>
+                h = Kedalaman sensor dari permukaan air (m)<br/>
+                Lintasan parabola: x = v · t
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAHAP 3 -->
+        <div class="glass-panel rounded-2xl p-6 space-y-6 border border-slate-800">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-2 text-sky-400 text-xs font-bold uppercase tracking-wider">
+              <i class="fa-solid fa-3"></i>
+              <span>TAHAP 3: Membimbing Penyelidikan Mandiri & Kelompok</span>
+            </div>
+            <div class="flex space-x-2">
+              <button id="p1_ar_btn" onclick="startAR('p1')" class="px-3 py-1.5 bg-gradient-to-r from-accent-600 to-indigo-600 hover:from-accent-500 hover:to-indigo-500 text-white rounded-lg text-xs font-bold shadow-md transition-all flex items-center space-x-1.5">
+                <i class="fa-solid fa-vr-cardboard"></i>
+                <span>MULAI WEB AR</span>
+              </button>
+              <button onclick="reset3DView('p1')" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-semibold border border-slate-700 transition-all">
+                <i class="fa-solid fa-arrows-rotate mr-1"></i>Reset Kamera
+              </button>
+            </div>
+          </div>
+
+          <!-- 3D SIMULATION CONTAINER -->
+          <div class="relative w-full h-[400px] sm:h-[480px] rounded-2xl bg-slate-950 overflow-hidden border border-slate-800 shadow-inner group">
+            <canvas id="canvasP1" class="sim-canvas"></canvas>
+            
+            <!-- AR Fallback Overlay Badge -->
+            <div class="absolute top-4 left-4 z-10 px-3 py-1.5 rounded-xl glass-panel text-xs text-sky-300 font-semibold border border-sky-500/30 flex items-center space-x-2">
+              <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+              <span>Mode Interactive 3D Physics Engine</span>
+            </div>
+
+            <!-- On-Canvas Live Data Cards -->
+            <div class="absolute bottom-4 left-4 right-4 z-10 grid grid-cols-3 gap-2 text-center pointer-events-none">
+              <div class="bg-slate-900/90 border border-slate-800 p-2 rounded-xl backdrop-blur-md">
+                <div class="text-[10px] text-sky-400 font-bold uppercase">Sensor A (Atas)</div>
+                <div id="p1_hud_h_a" class="text-xs font-mono text-white">h: 0.00 m</div>
+                <div id="p1_hud_p_a" class="text-xs font-mono text-cyan-300">P: 0 Pa</div>
+                <div id="p1_hud_v_a" class="text-xs font-mono text-emerald-400">v: 0.00 m/s</div>
+              </div>
+              <div class="bg-slate-900/90 border border-slate-800 p-2 rounded-xl backdrop-blur-md">
+                <div class="text-[10px] text-amber-400 font-bold uppercase">Sensor B (Tengah)</div>
+                <div id="p1_hud_h_b" class="text-xs font-mono text-white">h: 0.00 m</div>
+                <div id="p1_hud_p_b" class="text-xs font-mono text-amber-300">P: 0 Pa</div>
+                <div id="p1_hud_v_b" class="text-xs font-mono text-emerald-400">v: 0.00 m/s</div>
+              </div>
+              <div class="bg-slate-900/90 border border-slate-800 p-2 rounded-xl backdrop-blur-md">
+                <div class="text-[10px] text-purple-400 font-bold uppercase">Sensor C (Bawah)</div>
+                <div id="p1_hud_h_c" class="text-xs font-mono text-white">h: 0.00 m</div>
+                <div id="p1_hud_p_c" class="text-xs font-mono text-purple-300">P: 0 Pa</div>
+                <div id="p1_hud_v_c" class="text-xs font-mono text-emerald-400">v: 0.00 m/s</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Simulation Controls Slider -->
+          <div class="p-4 rounded-xl bg-slate-900/90 border border-slate-800 space-y-4">
+            <div class="flex flex-wrap items-center justify-between gap-4">
+              <div class="flex items-center space-x-3">
+                <button id="p1_toggle_sim" onclick="toggleSim('p1')" class="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md transition-all flex items-center space-x-2">
+                  <i class="fa-solid fa-play"></i>
+                  <span>MULAI SIMULASI</span>
+                </button>
+                <button onclick="resetSim('p1')" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs border border-slate-700 transition-all">
+                  <i class="fa-solid fa-rotate-left mr-1"></i>RESET
+                </button>
+              </div>
+
+              <div class="flex-1 max-w-md space-y-1">
+                <div class="flex justify-between text-xs font-semibold">
+                  <span class="text-slate-300">Ketinggian Air Botol (y_water)</span>
+                  <span id="p1_water_val" class="text-sky-400 font-mono">1.80 m</span>
+                </div>
+                <input type="range" id="p1_water_slider" min="0" max="2.0" step="0.05" value="1.80" class="w-full accent-sky-500 bg-slate-800 h-2 rounded-lg cursor-pointer">
+              </div>
+            </div>
+          </div>
+
+          <!-- Observation Table -->
+          <div class="space-y-3">
+            <h4 class="text-xs font-bold text-slate-200 uppercase tracking-wide">Tabel Data Hasil Pengamatan Simulasi:</h4>
+            <div class="overflow-x-auto">
+              <table class="w-full text-xs text-left text-slate-300 border-collapse">
+                <thead class="bg-slate-900 text-sky-400 border-b border-slate-800">
+                  <tr>
+                    <th class="p-3">Ketinggian Air</th>
+                    <th class="p-3">hA (m)</th>
+                    <th class="p-3">PA (Pa)</th>
+                    <th class="p-3">Jarak A (m)</th>
+                    <th class="p-3">hB (m)</th>
+                    <th class="p-3">PB (Pa)</th>
+                    <th class="p-3">Jarak B (m)</th>
+                    <th class="p-3">hC (m)</th>
+                    <th class="p-3">PC (Pa)</th>
+                    <th class="p-3">Jarak C (m)</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-800">
+                  <tr>
+                    <td class="p-3 font-semibold text-white">Rendah (0.8m)</td>
+                    <td class="p-2"><input type="text" id="p1_tbl_r_ha" class="w-16 bg-slate-900 border border-slate-700 rounded p-1 text-center font-mono"></td>
+                    <td class="p-2"><input type="text" id="p1_tbl_r_pa" class="w-16 bg-slate-900 border border-slate-700 rounded p-1 text-center font-mono"></td>
+                    <td class="p-2"><input type="text" id="p1_tbl_r_xa" class="w-16 bg-slate-900 border border-slate-700 rounded p-1 text-center font-mono"></td>
+                    <td class="p-2"><input type="text" id="p1_tbl_r_hb" class="w-16 bg-slate-900 border border-slate-700 rounded p-1 text-center font-mono"></td>
+                    <td class="p-2"><input type="text" id="p1_tbl_r_pb" class="w-16 bg-slate-900 border border-slate-700 rounded p-1 text-center font-mono"></td>
+                    <td class="p-2"><input type="text" id="p1_tbl_r_xb" class="w-16 bg-slate-900 border border-slate-700 rounded p-1 text-center font-mono"></td>
+                    <td class="p-2"><input type="text" id="p1_tbl_r_hc" class="w-16 bg-slate-900 border border-slate-700 rounded p-1 text-center font-mono"></td>
+                    <td class="p-2"><input type="text" id="p1_tbl_r_pc" class="w-16 bg-slate-900 border border-slate-700 rounded p-1 text-center font-mono"></td>
+                    <td class="p-2"><input type="text" id="p1_tbl_r_xc" class="w-16 bg-slate-900 border border-slate-700 rounded p-1 text-center font-mono"></td>
+                  </tr>
+                  <tr>
+                    <td class="p-3 font-semibold text-white">Sedang (1.4m)</td>
+                    <td class="p-2"><input type="text" id="p1_tbl_s_ha" class="w-16 bg-slate-900 border border-slate-700 rounded p-1 text-center font-mono"></td>
+                    <td class="p-2"><input type="text" id="p1_tbl_s_pa" class="w-16 bg-slate-900 border border-slate-700 rounded p-1 text-center font-mono"></td>
+                    <td class="p-2"><input type="text" id="p1_tbl_s_xa" class="w-16 bg-slate-900 border border-slate-700 rounded p-1 text-center font-mono"></td>
+                    <td class="p-2"><input type="text" id="p1_tbl_s_hb" class="w-16 bg-slate-900 border border-slate-700 rounded p-1 text-center font-mono"></td>
+                    <td class="p-2"><input type="text" id="p1_tbl_s_pb" class="w-16 bg-slate-900 border border-slate-700 rounded p-1 text-center font-mono"></td>
+                    <td class="p-2"><input type="text" id="p1_tbl_s_xb" class="w-16 bg-slate-900 border border-slate-700 rounded p-1 text-center font-mono"></td>
+                    <td class="p-2"><input type="text" id="p1_tbl_s_hc" class="w-16 bg-slate-900 border border-slate-700 rounded p-1 text-center font-mono"></td>
+                    <td class="p-2"><input type="text" id="p1_tbl_s_pc" class="w-16 bg-slate-900 border border-slate-700 rounded p-1 text-center font-mono"></td>
+                    <td class="p-2"><input type="text" id="p1_tbl_s_xc" class="w-16 bg-slate-900 border border-slate-700 rounded p-1 text-center font-mono"></td>
+                  </tr>
+                  <tr>
+                    <td class="p-3 font-semibold text-white">Tinggi (1.9m)</td>
+                    <td class="p-2"><input type="text" id="p1_tbl_t_ha" class="w-16 bg-slate-900 border border-slate-700 rounded p-1 text-center font-mono"></td>
+                    <td class="p-2"><input type="text" id="p1_tbl_t_pa" class="w-16 bg-slate-900 border border-slate-700 rounded p-1 text-center font-mono"></td>
+                    <td class="p-2"><input type="text" id="p1_tbl_t_xa" class="w-16 bg-slate-900 border border-slate-700 rounded p-1 text-center font-mono"></td>
+                    <td class="p-2"><input type="text" id="p1_tbl_t_hb" class="w-16 bg-slate-900 border border-slate-700 rounded p-1 text-center font-mono"></td>
+                    <td class="p-2"><input type="text" id="p1_tbl_t_pb" class="w-16 bg-slate-900 border border-slate-700 rounded p-1 text-center font-mono"></td>
+                    <td class="p-2"><input type="text" id="p1_tbl_t_xb" class="w-16 bg-slate-900 border border-slate-700 rounded p-1 text-center font-mono"></td>
+                    <td class="p-2"><input type="text" id="p1_tbl_t_hc" class="w-16 bg-slate-900 border border-slate-700 rounded p-1 text-center font-mono"></td>
+                    <td class="p-2"><input type="text" id="p1_tbl_t_pc" class="w-16 bg-slate-900 border border-slate-700 rounded p-1 text-center font-mono"></td>
+                    <td class="p-2"><input type="text" id="p1_tbl_t_xc" class="w-16 bg-slate-900 border border-slate-700 rounded p-1 text-center font-mono"></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <button onclick="autoFillData('p1')" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-sky-400 rounded-lg text-xs font-semibold border border-slate-700 transition-all">
+              <i class="fa-solid fa-wand-magic-sparkles mr-1"></i>Salin Data Sensor Otomatis
+            </button>
+          </div>
+        </div>
+
+        <!-- TAHAP 4 -->
+        <div class="glass-panel rounded-2xl p-6 space-y-6 border border-slate-800">
+          <div class="flex items-center space-x-2 text-sky-400 text-xs font-bold uppercase tracking-wider">
+            <i class="fa-solid fa-4"></i>
+            <span>TAHAP 4: Mengembangkan dan Menyajikan Hasil Karya</span>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">Data Hasil Pengamatan & Grafik Ringkas:</label>
+              <textarea id="p1_hasil_data" rows="3" placeholder="Uraikan perbandingan angka data sensor A, B, C..." class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 transition-all resize-none"></textarea>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">Perhitungan Matematis (P = ρgh & v = √(2gh)):</label>
+              <textarea id="p1_perhitungan" rows="3" placeholder="Tulis langkah matematis pembuktian..." class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 transition-all resize-none"></textarea>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">Analisis Hubungan Kedalaman dengan Tekanan & Pancaran:</label>
+              <textarea id="p1_analisis" rows="3" placeholder="Jelaskan Mengapa semakin dalam sensor, tekanan makin besar..." class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 transition-all resize-none"></textarea>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">Solusi Pemecahan Masalah Tantangan:</label>
+              <textarea id="p1_solusi" rows="3" placeholder="Jawaban untuk mendesain botol agar pancaran paling jauh..." class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 transition-all resize-none"></textarea>
+            </div>
+            <div class="md:col-span-2">
+              <label class="block text-xs font-semibold text-slate-300 mb-1">Kesimpulan Kelompok:</label>
+              <textarea id="p1_kesimpulan" rows="2" placeholder="Kesimpulan akhir menyeluruh mengenai Tekanan Hidrostatis..." class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 transition-all resize-none"></textarea>
+            </div>
+          </div>
+
+          <div class="flex justify-end space-x-3 pt-2">
+            <button onclick="saveModuleData('p1')" class="px-6 py-2.5 bg-sky-600 hover:bg-sky-500 text-white rounded-xl text-xs font-bold shadow-lg shadow-sky-600/30 transition-all flex items-center space-x-2">
+              <i class="fa-solid fa-floppy-disk"></i>
+              <span>SIMPAN HASIL PERTEMUAN 1</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- TAHAP 5 -->
+        <div class="glass-panel rounded-2xl p-6 space-y-4 border border-slate-800">
+          <div class="flex items-center space-x-2 text-sky-400 text-xs font-bold uppercase tracking-wider">
+            <i class="fa-solid fa-5"></i>
+            <span>TAHAP 5: Menganalisis dan Mengevaluasi Proses Pemecahan Masalah</span>
+          </div>
+
+          <div class="space-y-3 text-xs">
+            <div>
+              <label class="block font-semibold text-slate-300 mb-1">1. Apakah solusi kelompokmu dapat menjawab pertanyaan masalah fenomena botol?</label>
+              <textarea id="p1_eval_1" rows="2" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-white resize-none"></textarea>
+            </div>
+            <div>
+              <label class="block font-semibold text-slate-300 mb-1">2. Data apakah dari simulasi yang paling mendukung solusi kelompokmu?</label>
+              <textarea id="p1_eval_2" rows="2" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-white resize-none"></textarea>
+            </div>
+            <div>
+              <label class="block font-semibold text-slate-300 mb-1">3. Apakah prediksi awal kelompok sesuai dengan hasil pengamatan simulasi 3D?</label>
+              <textarea id="p1_eval_3" rows="2" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-white resize-none"></textarea>
+            </div>
+            <div>
+              <label class="block font-semibold text-slate-300 mb-1">4. Apa yang perlu diperbaiki dari langkah penyelidikan kelompokmu?</label>
+              <textarea id="p1_eval_4" rows="2" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-white resize-none"></textarea>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- VIEW 5: PERTEMUAN 2 (Hukum Archimedes) -->
+      <section id="view-pertemuan2" class="view-section hidden space-y-8 max-w-5xl mx-auto">
+        <!-- PBL Banner Header -->
+        <div class="flex items-center justify-between bg-slate-900/90 p-4 rounded-2xl border border-amber-500/30">
+          <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold">P2</div>
+            <div>
+              <h2 class="text-base font-bold text-white">Hukum Archimedes</h2>
+              <p class="text-xs text-amber-400 font-medium">"Bagaimana Cara Membuat Telur Tenggelam Menjadi Melayang atau Mengapung?"</p>
+            </div>
+          </div>
+          <span class="px-3 py-1 rounded-full text-xs font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+            Pertemuan 2 dari 3
+          </span>
+        </div>
+
+        <!-- TAHAP 1 -->
+        <div class="glass-panel rounded-2xl p-6 space-y-4 border border-slate-800">
+          <div class="flex items-center space-x-2 text-amber-400 text-xs font-bold uppercase tracking-wider">
+            <i class="fa-solid fa-1"></i>
+            <span>TAHAP 1: Orientasi Peserta Didik pada Masalah</span>
+          </div>
+          <h3 class="text-lg font-bold text-white">Fenomena Telur dalam Larutan Garam</h3>
+          
+          <div class="p-4 rounded-xl bg-slate-900/90 border border-slate-800 text-xs text-slate-300 space-y-2 leading-relaxed">
+            <p>
+              Sebuah telur segar yang dimasukkan ke dalam wadah berisi air murni secara otomatis langsung tenggelam hingga ke dasar wadah. Namun, ketika serbuk garam dapur ditambahkan secara bertahap dan diaduk hingga larut, telur perlahan terangkat naik hingga posisi melayang melayang di tengah air, atau bahkan mengapung di atas permukaan.
+            </p>
+          </div>
+
+          <div class="p-4 rounded-xl bg-amber-950/40 border border-amber-500/30 space-y-2">
+            <div class="font-bold text-xs text-amber-300 uppercase tracking-wide">Pertanyaan Masalah:</div>
+            <p class="text-xs text-slate-200 font-medium">“Bagaimana mekanisme fisik penambahan garam sehingga dapat membuat telur yang semula tenggelam bergerak naik hingga melayang atau mengapung?”</p>
+            <div class="font-bold text-xs text-amber-400 uppercase tracking-wide pt-2">Tantangan Kelompok:</div>
+            <p class="text-xs text-slate-300">“Tentukan secara tepat takaran massa garam dan massa jenis larutan yang dibutuhkan agar telur berada dalam posisi melayang tepat di tengah fluida!”</p>
+          </div>
+        </div>
+
+        <!-- TAHAP 2 -->
+        <div class="glass-panel rounded-2xl p-6 space-y-6 border border-slate-800">
+          <div class="flex items-center space-x-2 text-amber-400 text-xs font-bold uppercase tracking-wider">
+            <i class="fa-solid fa-2"></i>
+            <span>TAHAP 2: Mengorganisasi Peserta Didik untuk Belajar</span>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">Apa yang diketahui?</label>
+              <textarea id="p2_diketahui" rows="3" placeholder="Data awal massa telur, air..." class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 transition-all resize-none"></textarea>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">Apa yang ingin diketahui?</label>
+              <textarea id="p2_ditanyakan" rows="3" placeholder="Rumusan masalah kelompok..." class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 transition-all resize-none"></textarea>
+            </div>
+            <div class="md:col-span-2">
+              <label class="block text-xs font-semibold text-slate-300 mb-1">Prediksi Kelompok:</label>
+              <textarea id="p2_prediksi" rows="2" placeholder="Apa yang akan terjadi pada massa jenis larutan dan gaya Archimedes jika garam ditambahkan?..." class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 transition-all resize-none"></textarea>
+            </div>
+          </div>
+
+          <!-- Concept Cards -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+            <div class="p-4 rounded-xl bg-gradient-to-br from-slate-900 to-amber-950/40 border border-amber-500/30 space-y-2">
+              <span class="text-xs font-bold text-amber-400 uppercase tracking-wider block">Gaya Ke Atas (Archimedes)</span>
+              <div class="text-xl font-extrabold text-white font-mono">FA = ρf · g · Vbf</div>
+              <p class="text-xs text-slate-400">
+                FA = Gaya apung ke atas (N)<br/>
+                ρf = Massa jenis fluida/larutan (kg/m³)<br/>
+                g = Gravitasi = 9,8 m/s²<br/>
+                Vbf = Volume telur tercelup (m³)
+              </p>
+            </div>
+            <div class="p-4 rounded-xl bg-gradient-to-br from-slate-900 to-yellow-950/40 border border-yellow-500/30 space-y-2">
+              <span class="text-xs font-bold text-yellow-400 uppercase tracking-wider block">Syarat Keadaan Benda</span>
+              <p class="text-xs text-slate-300 space-y-1">
+                • <strong class="text-red-400">Tenggelam:</strong> ρbenda > ρfluida (W > FA)<br/>
+                • <strong class="text-amber-300">Melayang:</strong> ρbenda = ρfluida (W = FA)<br/>
+                • <strong class="text-emerald-400">Mengapung:</strong> ρbenda < ρfluida (W < FA)
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAHAP 3 -->
+        <div class="glass-panel rounded-2xl p-6 space-y-6 border border-slate-800">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-2 text-amber-400 text-xs font-bold uppercase tracking-wider">
+              <i class="fa-solid fa-3"></i>
+              <span>TAHAP 3: Membimbing Penyelidikan Archimedes</span>
+            </div>
+            <div class="flex space-x-2">
+              <button onclick="startAR('p2')" class="px-3 py-1.5 bg-gradient-to-r from-accent-600 to-indigo-600 text-white rounded-lg text-xs font-bold shadow-md">
+                <i class="fa-solid fa-vr-cardboard mr-1"></i>WEB AR
+              </button>
+              <button onclick="reset3DView('p2')" class="px-3 py-1.5 bg-slate-800 text-slate-200 rounded-lg text-xs font-semibold border border-slate-700">
+                Reset Kamera
+              </button>
+            </div>
+          </div>
+
+          <!-- 3D Canvas Container -->
+          <div class="relative w-full h-[400px] sm:h-[480px] rounded-2xl bg-slate-950 overflow-hidden border border-slate-800 shadow-inner">
+            <canvas id="canvasP2" class="sim-canvas"></canvas>
+
+            <!-- On-Canvas Telemetry HUD -->
+            <div class="absolute top-4 right-4 z-10 w-52 bg-slate-900/90 border border-slate-800 p-3 rounded-xl backdrop-blur-md space-y-1.5 text-xs">
+              <div class="text-amber-400 font-bold uppercase border-b border-slate-800 pb-1">Telemetri Telur</div>
+              <div class="flex justify-between"><span class="text-slate-400">Massa Garam:</span><span id="p2_hud_salt" class="font-mono text-white">0 g</span></div>
+              <div class="flex justify-between"><span class="text-slate-400">Massa Jenis Fluida:</span><span id="p2_hud_rho" class="font-mono text-cyan-300">1000 kg/m³</span></div>
+              <div class="flex justify-between"><span class="text-slate-400">Gaya Archimedes (FA):</span><span id="p2_hud_fa" class="font-mono text-emerald-400">0.49 N</span></div>
+              <div class="flex justify-between"><span class="text-slate-400">Berat Telur (W):</span><span class="font-mono text-amber-300">0.54 N</span></div>
+              <div class="flex justify-between font-bold pt-1 border-t border-slate-800"><span class="text-slate-300">Status:</span><span id="p2_hud_status" class="text-rose-400 uppercase">TENGGELAM</span></div>
+            </div>
+          </div>
+
+          <!-- Simulation Controls -->
+          <div class="p-4 rounded-xl bg-slate-900/90 border border-slate-800 space-y-4">
+            <div class="flex flex-wrap items-center justify-between gap-4">
+              <div class="flex items-center space-x-2">
+                <button onclick="addSaltP2(10)" class="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-xl text-xs font-bold shadow-md transition-all">
+                  <i class="fa-solid fa-plus mr-1"></i>+10g Garam
+                </button>
+                <button onclick="stirP2()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold shadow-md transition-all">
+                  <i class="fa-solid fa-utensils mr-1"></i>Aduk Larutan
+                </button>
+                <button onclick="resetSim('p2')" class="px-3 py-2 bg-slate-800 text-slate-300 rounded-xl text-xs font-semibold border border-slate-700">
+                  Reset
+                </button>
+              </div>
+
+              <div class="flex-1 max-w-xs space-y-1">
+                <div class="flex justify-between text-xs font-semibold">
+                  <span class="text-slate-300">Massa Garam Dapur</span>
+                  <span id="p2_salt_slider_val" class="text-amber-400 font-mono">0 g</span>
+                </div>
+                <input type="range" id="p2_salt_slider" min="0" max="100" step="1" value="0" class="w-full accent-amber-500 bg-slate-800 h-2 rounded-lg cursor-pointer">
+              </div>
+            </div>
+          </div>
+
+          <!-- Observation Table -->
+          <div class="space-y-3">
+            <h4 class="text-xs font-bold text-slate-200 uppercase tracking-wide">Tabel Pengamatan Archimedes:</h4>
+            <div class="overflow-x-auto">
+              <table class="w-full text-xs text-left text-slate-300 border-collapse">
+                <thead class="bg-slate-900 text-amber-400 border-b border-slate-800">
+                  <tr>
+                    <th class="p-3">Massa Garam (g)</th>
+                    <th class="p-3">ρ Fluida (kg/m³)</th>
+                    <th class="p-3">Gaya FA (N)</th>
+                    <th class="p-3">Berat Telur W (N)</th>
+                    <th class="p-3">Posisi Y (m)</th>
+                    <th class="p-3">Status Telur</th>
+                  </tr>
+                </thead>
+                <tbody id="p2_table_body" class="divide-y divide-slate-800">
+                  <!-- Dynamic rows generated or updated -->
+                </tbody>
+              </table>
+            </div>
+            <button onclick="captureDataP2()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-amber-400 rounded-lg text-xs font-semibold border border-slate-700">
+              <i class="fa-solid fa-camera mr-1"></i>Catat Baris Pengamatan Saat Ini
+            </button>
+          </div>
+        </div>
+
+        <!-- TAHAP 4 & 5 -->
+        <div class="glass-panel rounded-2xl p-6 space-y-6 border border-slate-800">
+          <div class="flex items-center space-x-2 text-amber-400 text-xs font-bold uppercase tracking-wider">
+            <i class="fa-solid fa-4"></i>
+            <span>TAHAP 4 & 5: Analisis, Solusi, dan Evaluasi Archimedes</span>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">Analisis Hubungan Massa Jenis Larutan dengan Gaya Apung:</label>
+              <textarea id="p2_analisis" rows="3" placeholder="Mengapa penambahan garam meningkatkan gaya Archimedes?..." class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs text-white resize-none"></textarea>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">Solusi & Kondisi Telur Melayang:</label>
+              <textarea id="p2_solusi" rows="3" placeholder="Berapa massa garam dan ρ larutan tepat agar melayang?..." class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs text-white resize-none"></textarea>
+            </div>
+            <div class="md:col-span-2">
+              <label class="block text-xs font-semibold text-slate-300 mb-1">Kesimpulan & Evaluasi:</label>
+              <textarea id="p2_kesimpulan" rows="2" placeholder="Kesimpulan modul Hukum Archimedes..." class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs text-white resize-none"></textarea>
+            </div>
+          </div>
+
+          <div class="flex justify-end">
+            <button onclick="saveModuleData('p2')" class="px-6 py-2.5 bg-amber-600 hover:bg-amber-500 text-white rounded-xl text-xs font-bold shadow-lg shadow-amber-600/30 transition-all flex items-center space-x-2">
+              <i class="fa-solid fa-floppy-disk"></i>
+              <span>SIMPAN HASIL PERTEMUAN 2</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- VIEW 6: PERTEMUAN 3 (Hukum Pascal) -->
+      <section id="view-pertemuan3" class="view-section hidden space-y-8 max-w-5xl mx-auto">
+        <!-- PBL Banner Header -->
+        <div class="flex items-center justify-between bg-slate-900/90 p-4 rounded-2xl border border-purple-500/30">
+          <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center font-bold">P3</div>
+            <div>
+              <h2 class="text-base font-bold text-white">Hukum Pascal</h2>
+              <p class="text-xs text-purple-400 font-medium">"Bagaimana Gaya Kecil Dapat Mengangkat Beban Mobil yang Sangat Berat?"</p>
+            </div>
+          </div>
+          <span class="px-3 py-1 rounded-full text-xs font-semibold bg-purple-500/20 text-purple-300 border border-purple-500/30">
+            Pertemuan 3 dari 3
+          </span>
+        </div>
+
+        <!-- TAHAP 1 -->
+        <div class="glass-panel rounded-2xl p-6 space-y-4 border border-slate-800">
+          <div class="flex items-center space-x-2 text-purple-400 text-xs font-bold uppercase tracking-wider">
+            <i class="fa-solid fa-1"></i>
+            <span>TAHAP 1: Orientasi Peserta Didik pada Masalah</span>
+          </div>
+          <h3 class="text-lg font-bold text-white">Fenomena Dongkrak Hidrolik Bengkel</h3>
+          
+          <div class="p-4 rounded-xl bg-slate-900/90 border border-slate-800 text-xs text-slate-300 space-y-2 leading-relaxed">
+            <p>
+              Di bengkel pencucian mobil, seorang teknisi dapat mengangkat satu unit mobil berbobot lebih dari 15.000 Newton hanya dengan menekan tuas atau piston kecil yang memerlukan gaya relatif sangat ringan.
+            </p>
+          </div>
+
+          <div class="p-4 rounded-xl bg-purple-950/40 border border-purple-500/30 space-y-2">
+            <div class="font-bold text-xs text-purple-300 uppercase tracking-wide">Pertanyaan Masalah:</div>
+            <p class="text-xs text-slate-200 font-medium">“Bagaimana sistem hidrolik dapat menggandakan gaya input yang kecil menjadi gaya output yang sangat besar?”</p>
+            <div class="font-bold text-xs text-purple-400 uppercase tracking-wide pt-2">Tantangan Kelompok:</div>
+            <p class="text-xs text-slate-300">“Tentukan perbandingan luas penampang piston A1 dan A2 agar gaya input 100 N mampu mengangkat mobil seberat 12.000 N!”</p>
+          </div>
+        </div>
+
+        <!-- TAHAP 2 -->
+        <div class="glass-panel rounded-2xl p-6 space-y-6 border border-slate-800">
+          <div class="flex items-center space-x-2 text-purple-400 text-xs font-bold uppercase tracking-wider">
+            <i class="fa-solid fa-2"></i>
+            <span>TAHAP 2: Mengorganisasi Peserta Didik untuk Belajar</span>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">Apa yang diketahui?</label>
+              <textarea id="p3_diketahui" rows="3" placeholder="F1, A1, A2..." class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs text-white resize-none"></textarea>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">Prediksi awal hubungan F dan A:</label>
+              <textarea id="p3_prediksi" rows="3" placeholder="Prediksi kelompok..." class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs text-white resize-none"></textarea>
+            </div>
+          </div>
+
+          <!-- Concept Cards -->
+          <div class="p-4 rounded-xl bg-gradient-to-br from-slate-900 to-purple-950/40 border border-purple-500/30 space-y-2">
+            <span class="text-xs font-bold text-purple-400 uppercase tracking-wider block">Rumus Hukum Pascal</span>
+            <div class="text-xl font-extrabold text-white font-mono">P1 = P2  ⇒  F1 / A1 = F2 / A2  ⇒  F2 = F1 · (A2 / A1)</div>
+            <p class="text-xs text-slate-400">
+              P = Tekanan yang diteruskan sama besar ke segala arah (Pa)<br/>
+              F1 = Gaya pada piston kecil (N), A1 = Luas penampang piston kecil (m²)<br/>
+              F2 = Gaya pada piston besar (N), A2 = Luas penampang piston besar (m²)
+            </p>
+          </div>
+        </div>
+
+        <!-- TAHAP 3 -->
+        <div class="glass-panel rounded-2xl p-6 space-y-6 border border-slate-800">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-2 text-purple-400 text-xs font-bold uppercase tracking-wider">
+              <i class="fa-solid fa-3"></i>
+              <span>TAHAP 3: Membimbing Penyelidikan Pascal</span>
+            </div>
+            <div class="flex space-x-2">
+              <button onclick="startAR('p3')" class="px-3 py-1.5 bg-gradient-to-r from-accent-600 to-indigo-600 text-white rounded-lg text-xs font-bold shadow-md">
+                <i class="fa-solid fa-vr-cardboard mr-1"></i>WEB AR
+              </button>
+              <button onclick="reset3DView('p3')" class="px-3 py-1.5 bg-slate-800 text-slate-200 rounded-lg text-xs font-semibold border border-slate-700">
+                Reset Kamera
+              </button>
+            </div>
+          </div>
+
+          <!-- 3D Canvas Container -->
+          <div class="relative w-full h-[400px] sm:h-[480px] rounded-2xl bg-slate-950 overflow-hidden border border-slate-800 shadow-inner">
+            <canvas id="canvasP3" class="sim-canvas"></canvas>
+
+            <!-- On-Canvas Telemetry HUD -->
+            <div class="absolute bottom-4 left-4 right-4 z-10 grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
+              <div class="bg-slate-900/90 border border-slate-800 p-2 rounded-xl backdrop-blur-md">
+                <div class="text-[10px] text-slate-400 uppercase">Gaya Input (F1)</div>
+                <div id="p3_hud_f1" class="text-sm font-mono font-bold text-sky-400">100 N</div>
+              </div>
+              <div class="bg-slate-900/90 border border-slate-800 p-2 rounded-xl backdrop-blur-md">
+                <div class="text-[10px] text-slate-400 uppercase">Perbandingan A2/A1</div>
+                <div id="p3_hud_ratio" class="text-sm font-mono font-bold text-amber-400">10x</div>
+              </div>
+              <div class="bg-slate-900/90 border border-slate-800 p-2 rounded-xl backdrop-blur-md">
+                <div class="text-[10px] text-slate-400 uppercase">Gaya Output (F2)</div>
+                <div id="p3_hud_f2" class="text-sm font-mono font-bold text-emerald-400">1000 N</div>
+              </div>
+              <div class="bg-slate-900/90 border border-slate-800 p-2 rounded-xl backdrop-blur-md">
+                <div class="text-[10px] text-slate-400 uppercase">Tinggi Mobil</div>
+                <div id="p3_hud_h" class="text-sm font-mono font-bold text-purple-400">0.00 m</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Controls and Sliders -->
+          <div class="p-4 rounded-xl bg-slate-900/90 border border-slate-800 space-y-4">
+            <div class="flex items-center space-x-3">
+              <button onclick="pumpP3()" class="px-5 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-purple-600/30 transition-all flex items-center space-x-2">
+                <i class="fa-solid fa-hand-pointer"></i>
+                <span>POMPA HYDRAULIC</span>
+              </button>
+              <button onclick="lowerP3()" class="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs rounded-xl border border-slate-700">
+                <i class="fa-solid fa-arrow-down mr-1"></i>Turunkan Mobil
+              </button>
+              <button onclick="resetSim('p3')" class="px-3 py-2.5 bg-slate-800 text-slate-400 rounded-xl text-xs font-semibold border border-slate-700">
+                Reset
+              </button>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
+              <div class="space-y-1">
+                <div class="flex justify-between text-xs font-semibold">
+                  <span class="text-slate-300">Gaya F1 (N)</span>
+                  <span id="p3_f1_val" class="text-sky-400 font-mono">100 N</span>
+                </div>
+                <input type="range" id="p3_f1_slider" min="50" max="500" step="10" value="100" class="w-full accent-sky-500 bg-slate-800 h-2 rounded-lg cursor-pointer">
+              </div>
+
+              <div class="space-y-1">
+                <div class="flex justify-between text-xs font-semibold">
+                  <span class="text-slate-300">Luas A1 (m²)</span>
+                  <span id="p3_a1_val" class="text-amber-400 font-mono">0.02 m²</span>
+                </div>
+                <input type="range" id="p3_a1_slider" min="0.01" max="0.1" step="0.01" value="0.02" class="w-full accent-amber-500 bg-slate-800 h-2 rounded-lg cursor-pointer">
+              </div>
+
+              <div class="space-y-1">
+                <div class="flex justify-between text-xs font-semibold">
+                  <span class="text-slate-300">Luas A2 (m²)</span>
+                  <span id="p3_a2_val" class="text-purple-400 font-mono">0.20 m²</span>
+                </div>
+                <input type="range" id="p3_a2_slider" min="0.05" max="0.5" step="0.01" value="0.20" class="w-full accent-purple-500 bg-slate-800 h-2 rounded-lg cursor-pointer">
+              </div>
+            </div>
+          </div>
+
+          <!-- Observation Table -->
+          <div class="space-y-3">
+            <h4 class="text-xs font-bold text-slate-200 uppercase tracking-wide">Tabel Pengamatan Hukum Pascal:</h4>
+            <div class="overflow-x-auto">
+              <table class="w-full text-xs text-left text-slate-300 border-collapse">
+                <thead class="bg-slate-900 text-purple-400 border-b border-slate-800">
+                  <tr>
+                    <th class="p-3">Percobaan</th>
+                    <th class="p-3">F1 (N)</th>
+                    <th class="p-3">A1 (m²)</th>
+                    <th class="p-3">A2 (m²)</th>
+                    <th class="p-3">F2 Hasil (N)</th>
+                    <th class="p-3">Tinggi Mobil (m)</th>
+                  </tr>
+                </thead>
+                <tbody id="p3_table_body" class="divide-y divide-slate-800">
+                  <!-- Dynamic rows -->
+                </tbody>
+              </table>
+            </div>
+            <button onclick="captureDataP3()" class="px-3 py-1.5 bg-slate-800 text-purple-400 rounded-lg text-xs font-semibold border border-slate-700">
+              <i class="fa-solid fa-camera mr-1"></i>Catat Data Saat Ini
+            </button>
+          </div>
+        </div>
+
+        <!-- TAHAP 4 & 5 -->
+        <div class="glass-panel rounded-2xl p-6 space-y-6 border border-slate-800">
+          <div class="flex items-center space-x-2 text-purple-400 text-xs font-bold uppercase tracking-wider">
+            <i class="fa-solid fa-4"></i>
+            <span>TAHAP 4 & 5: Analisis dan Evaluasi Pascal</span>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">Analisis Hubungan Gaya dan Luas Penampang Piston:</label>
+              <textarea id="p3_analisis" rows="3" placeholder="Mengapa perbesaran penampang A2 berbanding lurus dengan gaya F2?..." class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs text-white resize-none"></textarea>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">Penerapan Hukum Pascal dalam Kehidupan Sehari-hari:</label>
+              <textarea id="p3_penerapan" rows="3" placeholder="Contoh rem hidrolik mobil, kemudi hidrolik..." class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs text-white resize-none"></textarea>
+            </div>
+            <div class="md:col-span-2">
+              <label class="block text-xs font-semibold text-slate-300 mb-1">Kesimpulan Akhir Modul Pascal:</label>
+              <textarea id="p3_kesimpulan" rows="2" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs text-white resize-none"></textarea>
+            </div>
+          </div>
+
+          <div class="flex justify-end">
+            <button onclick="saveModuleData('p3')" class="px-6 py-2.5 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-xs font-bold shadow-lg shadow-purple-600/30 transition-all flex items-center space-x-2">
+              <i class="fa-solid fa-floppy-disk"></i>
+              <span>SIMPAN HASIL PERTEMUAN 3</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- VIEW 7: REFLEKSI AKHIR -->
+      <section id="view-refleksi" class="view-section hidden space-y-8 max-w-5xl mx-auto">
+        <div class="glass-panel rounded-2xl p-6 sm:p-8 space-y-6 border border-slate-800">
+          <div class="flex items-center space-x-3 border-b border-slate-800 pb-4">
+            <div class="w-10 h-10 rounded-xl bg-rose-500/20 text-rose-400 flex items-center justify-center text-xl">
+              <i class="fa-solid fa-pen-to-square"></i>
+            </div>
+            <div>
+              <h2 class="text-xl font-bold text-white">Refleksi Akhir Pembelajaran</h2>
+              <p class="text-xs text-slate-400">Evaluasi menyeluruh terhadap penguasaan konsep Fluida Statis dan Web AR.</p>
+            </div>
+          </div>
+
+          <!-- Summary Matrix Table -->
+          <div class="overflow-x-auto">
+            <table class="w-full text-xs text-left text-slate-300 border-collapse">
+              <thead class="bg-slate-900 text-cyan-400 border-b border-slate-800">
+                <tr>
+                  <th class="p-3">Materi</th>
+                  <th class="p-3">Fenomena Utama</th>
+                  <th class="p-3">Konsep Fisika Kunci</th>
+                  <th class="p-3">Persamaan Utama</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-800">
+                <tr>
+                  <td class="p-3 font-bold text-sky-400">Tekanan Hidrostatis</td>
+                  <td class="p-3">Botol berlubang 3 posisi vertikal</td>
+                  <td class="p-3">Tekanan berbanding lurus dengan kedalaman</td>
+                  <td class="p-3 font-mono text-cyan-300">P = ρgh & v = √(2gh)</td>
+                </tr>
+                <tr>
+                  <td class="p-3 font-bold text-amber-400">Hukum Archimedes</td>
+                  <td class="p-3">Telur melayang dalam air garam</td>
+                  <td class="p-3">Gaya ke atas sebanding dengan massa jenis larutan</td>
+                  <td class="p-3 font-mono text-amber-300">FA = ρf · g · V</td>
+                </tr>
+                <tr>
+                  <td class="p-3 font-bold text-purple-400">Hukum Pascal</td>
+                  <td class="p-3">Dongkrak hidrolik pemindah mobil</td>
+                  <td class="p-3">Tekanan diteruskan sama besar ke segala arah</td>
+                  <td class="p-3 font-mono text-purple-300">F1/A1 = F2/A2</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- 8 Reflective Essay Questions -->
+          <div class="space-y-4 pt-2">
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">1. Apa persamaan proses pemecahan masalah (PBL) dari ketiga materi fluida statis?</label>
+              <textarea id="ref_q1" rows="2" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs text-white resize-none"></textarea>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">2. Mengapa data hasil pengamatan simulasi sangat penting dalam menyusun pemecahan masalah?</label>
+              <textarea id="ref_q2" rows="2" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs text-white resize-none"></textarea>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">3. Materi manakah yang menurut kelompokmu paling mudah dipahami dan mengapa?</label>
+              <textarea id="ref_q3" rows="2" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs text-white resize-none"></textarea>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">4. Materi manakah yang masih memerlukan penjelasan lebih lanjut?</label>
+              <textarea id="ref_q4" rows="2" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs text-white resize-none"></textarea>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">5. Bagaimana simulasi 3D membantu kelompokmu membayangkan konsep yang tidak terlihat?</label>
+              <textarea id="ref_q5" rows="2" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs text-white resize-none"></textarea>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">6. Bagaimana teknologi Web AR membantu proses pembelajaran interaktif kelompokmu?</label>
+              <textarea id="ref_q6" rows="2" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs text-white resize-none"></textarea>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">7. Penerapan fluida statis apa saja yang kamu temukan dalam kehidupan sehari-hari sekitar rumahmu?</label>
+              <textarea id="ref_q7" rows="2" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs text-white resize-none"></textarea>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">8. Keterampilan abad 21 (kritis, kolaborasi, komunikasi) apa yang paling berkembang setelah menyelesaikan LKPD ini?</label>
+              <textarea id="ref_q8" rows="2" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs text-white resize-none"></textarea>
+            </div>
+          </div>
+
+          <div class="flex justify-between items-center pt-4 border-t border-slate-800">
+            <button onclick="exportJSON()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-semibold border border-slate-700 flex items-center space-x-2">
+              <i class="fa-solid fa-download"></i>
+              <span>Ekspor Ringkasan JSON</span>
+            </button>
+            <button onclick="saveAllAndFinish()" class="px-6 py-2.5 bg-gradient-to-r from-rose-600 to-accent-600 hover:from-rose-500 hover:to-accent-500 text-white rounded-xl text-xs font-extrabold shadow-lg shadow-rose-600/30 flex items-center space-x-2">
+              <i class="fa-solid fa-check-double"></i>
+              <span>SIMPAN & SELESAIKAN LKPD</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- Toast Message Box Container -->
+  <div id="toast" class="fixed bottom-6 right-6 z-50 transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none glass-panel px-5 py-3 rounded-2xl shadow-2xl border border-cyan-500/30 flex items-center space-x-3 text-xs text-white">
+    <div id="toastIcon" class="w-7 h-7 rounded-lg bg-cyan-500/20 text-cyan-400 flex items-center justify-center">
+      <i class="fa-solid fa-circle-check"></i>
+    </div>
+    <span id="toastMsg">Pesan Toast</span>
+  </div>
+
+  <!-- JAVASCRIPT APP ENGINE -->
+  <script>
+    /* Global Storage Key & State */
+    const STORAGE_KEY = "LKPD_FLUIDA_STATIS_DATA";
+    let appData = {
+      identity: {},
+      p1: {},
+      p2: { saltHistory: [] },
+      p3: { history: [] },
+      refleksi: {},
+      progress: 0
+    };
+
+    /* Constants */
+    const RHO_WATER = 1000; // kg/m3
+    const GRAVITY = 9.8;    // m/s2
+
+    /* Three.js Simulation Engines */
+    let simP1 = { scene: null, camera: null, renderer: null, controls: null, isRunning: false, particles: [], waterMesh: null, animationFrame: null };
+    let simP2 = { scene: null, camera: null, renderer: null, controls: null, eggMesh: null, animationFrame: null, targetY: -0.6, currentY: -0.6, saltParticles: [] };
+    let simP3 = { scene: null, camera: null, renderer: null, controls: null, piston1: null, piston2: null, carMesh: null, animationFrame: null, p1Y: 0, p2Y: 0, targetP2Y: 0 };
+
+    /* WebXR / WebAR state */
+    let xrSession = null;
+
+    /* DOM Ready Initialization */
+    window.onload = function() {
+      loadSavedData();
+      initNavigation();
+      initIdentityForm();
+      initP1Engine();
+      initP2Engine();
+      initP3Engine();
+      updateOverallProgress();
+
+      // Window Resize Listener for Responsive Canvases
+      window.addEventListener('resize', onWindowResize, false);
+    };
+
+    function showToast(msg, isSuccess = true) {
+      const toast = document.getElementById("toast");
+      const toastMsg = document.getElementById("toastMsg");
+      const toastIcon = document.getElementById("toastIcon");
+
+      toastMsg.innerText = msg;
+      if (isSuccess) {
+        toastIcon.className = "w-7 h-7 rounded-lg bg-cyan-500/20 text-cyan-400 flex items-center justify-center";
+        toastIcon.innerHTML = '<i class="fa-solid fa-circle-check"></i>';
+      } else {
+        toastIcon.className = "w-7 h-7 rounded-lg bg-rose-500/20 text-rose-400 flex items-center justify-center";
+        toastIcon.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i>';
+      }
+
+      toast.classList.remove("translate-y-20", "opacity-0");
+      setTimeout(() => {
+        toast.classList.add("translate-y-20", "opacity-0");
+      }, 3000);
+    }
+
+    function loadSavedData() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          appData = JSON.parse(raw);
+          fillFormFromData();
+          showToast("Data simpanan berhasil dimuat!");
+        }
+      } catch (e) {
+        console.error("Error loading localStorage:", e);
+      }
+    }
+
+    function saveAllData() {
+      // Gather inputs
+      gatherFormInputs();
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
+      updateOverallProgress();
+      showToast("Seluruh data LKPD berhasil disimpan!");
+    }
+
+    function resetAllData() {
+      if (confirm("Apakah Anda yakin ingin mereset seluruh jawaban dan data LKPD?")) {
+        localStorage.removeItem(STORAGE_KEY);
+        location.reload();
+      }
+    }
+
+    document.getElementById("saveDataBtn").addEventListener("click", saveAllData);
+    document.getElementById("resetDataBtn").addEventListener("click", resetAllData);
+
+    function initNavigation() {
+      const links = document.querySelectorAll(".nav-link");
+      links.forEach(link => {
+        link.addEventListener("click", () => {
+          const target = link.getAttribute("data-target");
+          switchView(target);
+        });
+      });
+
+      // Mobile drawer
+      const toggleBtn = document.getElementById("sidebarToggleBtn");
+      const sidebar = document.getElementById("sidebar");
+      const overlay = document.getElementById("sidebarOverlay");
+
+      if (toggleBtn && sidebar && overlay) {
+        toggleBtn.addEventListener("click", () => {
+          sidebar.classList.toggle("-translate-x-full");
+          overlay.classList.toggle("hidden");
+        });
+        overlay.addEventListener("click", () => {
+          sidebar.classList.add("-translate-x-full");
+          overlay.classList.add("hidden");
+        });
+      }
+    }
+
+    function switchView(targetId) {
+      const views = document.querySelectorAll(".view-section");
+      views.forEach(v => v.classList.add("hidden"));
+
+      const activeView = document.getElementById("view-" + targetId);
+      if (activeView) {
+        activeView.classList.remove("hidden");
+      }
+
+      // Update Nav Link Active States
+      const links = document.querySelectorAll(".nav-link");
+      links.forEach(link => {
+        if (link.getAttribute("data-target") === targetId) {
+          link.classList.add("active", "text-cyan-400", "bg-brand-900/40", "border", "border-brand-500/30");
+        } else {
+          link.classList.remove("active", "text-cyan-400", "bg-brand-900/40", "border", "border-brand-500/30");
+        }
+      });
+
+      // Resize active 3D engine canvas
+      setTimeout(() => {
+        onWindowResize();
+      }, 50);
+
+      // Close mobile drawer if open
+      const sidebar = document.getElementById("sidebar");
+      const overlay = document.getElementById("sidebarOverlay");
+      if (sidebar && !sidebar.classList.contains("-translate-x-full") && window.innerWidth < 1024) {
+        sidebar.classList.add("-translate-x-full");
+        overlay.classList.add("hidden");
+      }
+    }
+
+    function initIdentityForm() {
+      const form = document.getElementById("identityForm");
+      if (form) {
+        form.addEventListener("submit", (e) => {
+          e.preventDefault();
+          appData.identity = {
+            nama: document.getElementById("idNama").value,
+            kelas: document.getElementById("idKelas").value,
+            kelompok: document.getElementById("idKelompok").value,
+            guru: document.getElementById("idGuru").value,
+            anggota: document.getElementById("idAnggota").value
+          };
+          saveAllData();
+        });
+      }
+    }
+
+    function gatherFormInputs() {
+      appData.identity = {
+        nama: document.getElementById("idNama")?.value || "",
+        kelas: document.getElementById("idKelas")?.value || "",
+        kelompok: document.getElementById("idKelompok")?.value || "",
+        guru: document.getElementById("idGuru")?.value || "",
+        anggota: document.getElementById("idAnggota")?.value || ""
+      };
+
+      // Pertemuan 1 fields
+      appData.p1 = {
+        diketahui: document.getElementById("p1_diketahui")?.value || "",
+        ditanyakan: document.getElementById("p1_ditanyakan")?.value || "",
+        variabel: document.getElementById("p1_variabel")?.value || "",
+        alasan: document.getElementById("p1_alasan_prediksi")?.value || "",
+        data: document.getElementById("p1_hasil_data")?.value || "",
+        perhitungan: document.getElementById("p1_perhitungan")?.value || "",
+        analisis: document.getElementById("p1_analisis")?.value || "",
+        solusi: document.getElementById("p1_solusi")?.value || "",
+        kesimpulan: document.getElementById("p1_kesimpulan")?.value || ""
+      };
+
+      // Pertemuan 2 fields
+      appData.p2.analisis = document.getElementById("p2_analisis")?.value || "";
+      appData.p2.solusi = document.getElementById("p2_solusi")?.value || "";
+      appData.p2.kesimpulan = document.getElementById("p2_kesimpulan")?.value || "";
+
+      // Pertemuan 3 fields
+      appData.p3.analisis = document.getElementById("p3_analisis")?.value || "";
+      appData.p3.penerapan = document.getElementById("p3_penerapan")?.value || "";
+      appData.p3.kesimpulan = document.getElementById("p3_kesimpulan")?.value || "";
+
+      // Refleksi fields
+      appData.refleksi = {
+        q1: document.getElementById("ref_q1")?.value || "",
+        q2: document.getElementById("ref_q2")?.value || "",
+        q3: document.getElementById("ref_q3")?.value || "",
+        q4: document.getElementById("ref_q4")?.value || "",
+        q5: document.getElementById("ref_q5")?.value || "",
+        q6: document.getElementById("ref_q6")?.value || "",
+        q7: document.getElementById("ref_q7")?.value || "",
+        q8: document.getElementById("ref_q8")?.value || ""
+      };
+    }
+
+    function fillFormFromData() {
+      if (appData.identity) {
+        if (document.getElementById("idNama")) document.getElementById("idNama").value = appData.identity.nama || "";
+        if (document.getElementById("idKelas")) document.getElementById("idKelas").value = appData.identity.kelas || "";
+        if (document.getElementById("idKelompok")) document.getElementById("idKelompok").value = appData.identity.kelompok || "";
+        if (document.getElementById("idGuru")) document.getElementById("idGuru").value = appData.identity.guru || "";
+        if (document.getElementById("idAnggota")) document.getElementById("idAnggota").value = appData.identity.anggota || "";
+      }
+
+      if (appData.p1) {
+        if (document.getElementById("p1_diketahui")) document.getElementById("p1_diketahui").value = appData.p1.diketahui || "";
+        if (document.getElementById("p1_ditanyakan")) document.getElementById("p1_ditanyakan").value = appData.p1.ditanyakan || "";
+        if (document.getElementById("p1_variabel")) document.getElementById("p1_variabel").value = appData.p1.variabel || "";
+        if (document.getElementById("p1_alasan_prediksi")) document.getElementById("p1_alasan_prediksi").value = appData.p1.alasan || "";
+        if (document.getElementById("p1_hasil_data")) document.getElementById("p1_hasil_data").value = appData.p1.data || "";
+        if (document.getElementById("p1_perhitungan")) document.getElementById("p1_perhitungan").value = appData.p1.perhitungan || "";
+        if (document.getElementById("p1_analisis")) document.getElementById("p1_analisis").value = appData.p1.analisis || "";
+        if (document.getElementById("p1_solusi")) document.getElementById("p1_solusi").value = appData.p1.solusi || "";
+        if (document.getElementById("p1_kesimpulan")) document.getElementById("p1_kesimpulan").value = appData.p1.kesimpulan || "";
+      }
+
+      if (appData.p2) {
+        if (document.getElementById("p2_analisis")) document.getElementById("p2_analisis").value = appData.p2.analisis || "";
+        if (document.getElementById("p2_solusi")) document.getElementById("p2_solusi").value = appData.p2.solusi || "";
+        if (document.getElementById("p2_kesimpulan")) document.getElementById("p2_kesimpulan").value = appData.p2.kesimpulan || "";
+      }
+
+      if (appData.p3) {
+        if (document.getElementById("p3_analisis")) document.getElementById("p3_analisis").value = appData.p3.analisis || "";
+        if (document.getElementById("p3_penerapan")) document.getElementById("p3_penerapan").value = appData.p3.penerapan || "";
+        if (document.getElementById("p3_kesimpulan")) document.getElementById("p3_kesimpulan").value = appData.p3.kesimpulan || "";
+      }
+
+      if (appData.refleksi) {
+        for (let i = 1; i <= 8; i++) {
+          if (document.getElementById("ref_q" + i)) {
+            document.getElementById("ref_q" + i).value = appData.refleksi["q" + i] || "";
+          }
+        }
+      }
+    }
+
+    function updateOverallProgress() {
+      let totalFields = 20;
+      let filledFields = 0;
+
+      if (appData.identity?.nama) filledFields++;
+      if (appData.p1?.diketahui) filledFields++;
+      if (appData.p1?.analisis) filledFields++;
+      if (appData.p1?.solusi) filledFields++;
+      if (appData.p2?.analisis) filledFields++;
+      if (appData.p2?.solusi) filledFields++;
+      if (appData.p3?.analisis) filledFields++;
+      if (appData.p3?.kesimpulan) filledFields++;
+
+      for (let i = 1; i <= 8; i++) {
+        if (appData.refleksi?.["q" + i]) filledFields++;
+      }
+
+      let percent = Math.min(100, Math.round((filledFields / totalFields) * 100));
+      appData.progress = percent;
+
+      const topBar = document.getElementById("topProgressBar");
+      const topTxt = document.getElementById("topProgressText");
+      if (topBar) topBar.style.width = percent + "%";
+      if (topTxt) topTxt.innerText = percent + "%";
+
+      // Module status pills
+      let p1Pill = document.querySelector(".p1-status");
+      let p2Pill = document.querySelector(".p2-status");
+      let p3Pill = document.querySelector(".p3-status");
+
+      if (p1Pill) p1Pill.innerText = (appData.p1?.kesimpulan ? "100%" : "33%");
+      if (p2Pill) p2Pill.innerText = (appData.p2?.kesimpulan ? "100%" : "33%");
+      if (p3Pill) p3Pill.innerText = (appData.p3?.kesimpulan ? "100%" : "33%");
+    }
+
+    function onWindowResize() {
+      [simP1, simP2, simP3].forEach(sim => {
+        if (sim.camera && sim.renderer) {
+          const container = sim.renderer.domElement.parentElement;
+          if (container) {
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+            sim.camera.aspect = width / height;
+            sim.camera.updateProjectionMatrix();
+            sim.renderer.setSize(width, height);
+          }
+        }
+      });
+    }
+
+    // =========================================================================
+    // PERTEMUAN 1: THREE.JS 3D PHYSICS ENGINE (3-HOLE BOTTLE & PARABOLIC JETS)
+    // =========================================================================
+    function initP1Engine() {
+      const canvas = document.getElementById("canvasP1");
+      if (!canvas) return;
+
+      const container = canvas.parentElement;
+      const width = container.clientWidth;
+      const height = container.clientHeight;
+
+      simP1.scene = new THREE.Scene();
+      simP1.scene.background = new THREE.Color("#020617");
+
+      simP1.camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100);
+      simP1.camera.position.set(2.8, 1.2, 3.5);
+
+      simP1.renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true });
+      simP1.renderer.setSize(width, height);
+      simP1.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+      simP1.controls = new THREE.OrbitControls(simP1.camera, simP1.renderer.domElement);
+      simP1.controls.enableDamping = true;
+      simP1.controls.dampingFactor = 0.05;
+      simP1.controls.target.set(0, 0, 0);
+
+      // Lighting
+      const ambientLight = new THREE.AmbientLight("#ffffff", 0.7);
+      simP1.scene.add(ambientLight);
+
+      const dirLight = new THREE.DirectionalLight("#38bdf8", 1.2);
+      dirLight.position.set(5, 10, 5);
+      simP1.scene.add(dirLight);
+
+      // Base Platform / Grid
+      const gridHelper = new THREE.GridHelper(10, 20, "#0284c7", "#1e293b");
+      gridHelper.position.y = -1.2;
+      simP1.scene.add(gridHelper);
+
+      // Bottle Parent Group
+      simP1.bottleGroup = new THREE.Group();
+      simP1.scene.add(simP1.bottleGroup);
+
+      // Transparent Glass Bottle Mesh
+      const bottleGeo = new THREE.CylinderGeometry(0.5, 0.5, 2.2, 32, 1, true);
+      const bottleMat = new THREE.MeshPhysicalMaterial({
+        color: "#ffffff",
+        transparent: true,
+        opacity: 0.35,
+        roughness: 0.1,
+        transmission: 0.8,
+        thickness: 0.2
+      });
+      const bottleMesh = new THREE.Mesh(bottleGeo, bottleMat);
+      bottleMesh.position.y = -0.1;
+      simP1.bottleGroup.add(bottleMesh);
+
+      // Water Cylinder Mesh inside
+      const waterGeo = new THREE.CylinderGeometry(0.48, 0.48, 1.8, 32);
+      const waterMat = new THREE.MeshStandardMaterial({
+        color: "#0284c7",
+        transparent: true,
+        opacity: 0.65,
+        roughness: 0.2
+      });
+      simP1.waterMesh = new THREE.Mesh(waterGeo, waterMat);
+      simP1.waterMesh.position.y = -0.3;
+      simP1.bottleGroup.add(simP1.waterMesh);
+
+      // 3 Sensor Holes (A = Top, B = Middle, C = Bottom)
+      simP1.sensors = [
+        { id: "A", y: 0.5, color: "#38bdf8" },  // Sensor A
+        { id: "B", y: -0.1, color: "#f59e0b" }, // Sensor B
+        { id: "C", y: -0.7, color: "#a855f7" }  // Sensor C
+      ];
+
+      simP1.sensorMeshes = [];
+      simP1.sensors.forEach(s => {
+        const sGeo = new THREE.SphereGeometry(0.06, 16, 16);
+        const sMat = new THREE.MeshBasicMaterial({ color: s.color });
+        const sMesh = new THREE.Mesh(sGeo, sMat);
+        sMesh.position.set(0.5, s.y, 0); // attached on right bottle wall
+        simP1.bottleGroup.add(sMesh);
+        simP1.sensorMeshes.push(sMesh);
+      });
+
+      // Interactive Slider listener
+      const slider = document.getElementById("p1_water_slider");
+      if (slider) {
+        slider.addEventListener("input", (e) => {
+          const val = parseFloat(e.target.value);
+          document.getElementById("p1_water_val").innerText = val.toFixed(2) + " m";
+          updateP1Physics(val);
+        });
+      }
+
+      updateP1Physics(1.80);
+      animateP1();
+    }
+
+    function updateP1Physics(waterLevelMeters) {
+      // Bottle visual scale for water height
+      const scaleY = waterLevelMeters / 2.0; // max height is 2.0m
+      if (simP1.waterMesh) {
+        simP1.waterMesh.scale.set(1, Math.max(0.01, scaleY), 1);
+        simP1.waterMesh.position.y = -1.2 + (scaleY * 2.2 / 2);
+      }
+
+      // Calculate Physics for Sensors A, B, C
+      // Bottle bottom is at y = -1.2m (world relative depth)
+      // Water level top height relative to bottle bottom:
+      const yWaterTop = -1.2 + (waterLevelMeters);
+
+      simP1.sensors.forEach(s => {
+        const sWorldY = s.y; // -0.7 for C, -0.1 for B, 0.5 for A
+        const depth = yWaterTop - sWorldY; // depth h in meters
+
+        let P = 0;
+        let v = 0;
+        let xDist = 0;
+
+        if (depth > 0) {
+          P = RHO_WATER * GRAVITY * depth; // P = ρgh
+          v = Math.sqrt(2 * GRAVITY * depth); // v = √(2gh)
+          // Parabolic horizontal distance from height to floor y=-1.2
+          const dropHeight = sWorldY - (-1.2);
+          const timeToFall = Math.sqrt((2 * dropHeight) / GRAVITY);
+          xDist = v * timeToFall;
+        }
+
+        s.currentP = P;
+        s.currentV = v;
+        s.currentH = Math.max(0, depth);
+        s.currentDist = Math.max(0, xDist);
+
+        // Update HUD
+        const hElem = document.getElementById("p1_hud_h_" + s.id.toLowerCase());
+        const pElem = document.getElementById("p1_hud_p_" + s.id.toLowerCase());
+        const vElem = document.getElementById("p1_hud_v_" + s.id.toLowerCase());
+
+        if (hElem) hElem.innerText = "h: " + s.currentH.toFixed(2) + " m";
+        if (pElem) pElem.innerText = "P: " + Math.round(P) + " Pa";
+        if (vElem) vElem.innerText = "v: " + v.toFixed(2) + " m/s";
+      });
+    }
+
+    function animateP1() {
+      simP1.animationFrame = requestAnimationFrame(animateP1);
+
+      if (simP1.controls) simP1.controls.update();
+
+      // Spawn water jet particles if simulation is running
+      if (simP1.isRunning) {
+        simP1.sensors.forEach(s => {
+          if (s.currentV > 0) {
+            // Spawn particle from sensor hole position
+            const pGeo = new THREE.SphereGeometry(0.02, 8, 8);
+            const pMat = new THREE.MeshBasicMaterial({ color: s.color, transparent: true, opacity: 0.8 });
+            const pMesh = new THREE.Mesh(pGeo, pMat);
+
+            pMesh.position.set(0.5, s.y, 0);
+            simP1.bottleGroup.add(pMesh);
+
+            simP1.particles.push({
+              mesh: pMesh,
+              vx: s.currentV * 0.35,
+              vy: 0.1,
+              vz: (Math.random() - 0.5) * 0.02,
+              life: 0
+            });
+          }
+        });
+      }
+
+      // Update particle trajectories (Parabolic motion)
+      for (let i = simP1.particles.length - 1; i >= 0; i--) {
+        const p = simP1.particles[i];
+        p.life += 0.02;
+        p.mesh.position.x += p.vx * 0.02;
+        p.mesh.position.y += p.vy * 0.02 - 0.5 * GRAVITY * 0.02 * p.life;
+        p.mesh.position.z += p.vz;
+
+        // Hit floor y = -1.2
+        if (p.mesh.position.y <= -1.2 || p.life > 2.0) {
+          simP1.bottleGroup.remove(p.mesh);
+          simP1.particles.splice(i, 1);
+        }
+      }
+
+      if (simP1.renderer && simP1.scene && simP1.camera) {
+        simP1.renderer.render(simP1.scene, simP1.camera);
+      }
+    }
+
+    function toggleSim(mod) {
+      if (mod === "p1") {
+        simP1.isRunning = !simP1.isRunning;
+        const btn = document.getElementById("p1_toggle_sim");
+        if (btn) {
+          btn.innerHTML = simP1.isRunning ? 
+            '<i class="fa-solid fa-pause mr-1"></i>JEDA SIMULASI' : 
+            '<i class="fa-solid fa-play mr-1"></i>MULAI SIMULASI';
+          btn.className = simP1.isRunning ? 
+            "px-5 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs shadow-md transition-all flex items-center space-x-2" : 
+            "px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md transition-all flex items-center space-x-2";
+        }
+      }
+    }
+
+    function resetSim(mod) {
+      if (mod === "p1") {
+        simP1.isRunning = false;
+        document.getElementById("p1_water_slider").value = 1.80;
+        document.getElementById("p1_water_val").innerText = "1.80 m";
+        updateP1Physics(1.80);
+        showToast("Simulasi Pertemuan 1 Direset.");
+      } else if (mod === "p2") {
+        document.getElementById("p2_salt_slider").value = 0;
+        document.getElementById("p2_salt_slider_val").innerText = "0 g";
+        document.getElementById("p2_hud_salt").innerText = "0 g";
+        simP2.targetY = -0.8;
+        showToast("Simulasi Pertemuan 2 Direset.");
+      } else if (mod === "p3") {
+        simP3.targetP2Y = 0;
+        document.getElementById("p3_hud_h").innerText = "0.00 m";
+        showToast("Simulasi Pertemuan 3 Direset.");
+      }
+    }
+
+    function autoFillData(mod) {
+      if (mod === "p1") {
+        // Auto-fill observation table based on physical equations
+        document.getElementById("p1_tbl_r_ha").value = "0.10";
+        document.getElementById("p1_tbl_r_pa").value = "980";
+        document.getElementById("p1_tbl_r_xa").value = "0.24";
+        document.getElementById("p1_tbl_r_hb").value = "0.70";
+        document.getElementById("p1_tbl_r_pb").value = "6860";
+        document.getElementById("p1_tbl_r_xb").value = "0.78";
+        document.getElementById("p1_tbl_r_hc").value = "1.30";
+        document.getElementById("p1_tbl_r_pc").value = "12740";
+        document.getElementById("p1_tbl_r_xc").value = "1.12";
+
+        document.getElementById("p1_tbl_s_ha").value = "0.70";
+        document.getElementById("p1_tbl_s_pa").value = "6860";
+        document.getElementById("p1_tbl_s_xa").value = "0.78";
+        document.getElementById("p1_tbl_s_hb").value = "1.30";
+        document.getElementById("p1_tbl_s_pb").value = "12740";
+        document.getElementById("p1_tbl_s_xb").value = "1.12";
+        document.getElementById("p1_tbl_s_hc").value = "1.90";
+        document.getElementById("p1_tbl_s_pc").value = "18620";
+        document.getElementById("p1_tbl_s_xc").value = "1.45";
+
+        document.getElementById("p1_tbl_t_ha").value = "1.20";
+        document.getElementById("p1_tbl_t_pa").value = "11760";
+        document.getElementById("p1_tbl_t_xa").value = "1.08";
+        document.getElementById("p1_tbl_t_hb").value = "1.80";
+        document.getElementById("p1_tbl_t_pb").value = "17640";
+        document.getElementById("p1_tbl_t_xb").value = "1.38";
+        document.getElementById("p1_tbl_t_hc").value = "2.40";
+        document.getElementById("p1_tbl_t_pc").value = "23520";
+        document.getElementById("p1_tbl_t_xc").value = "1.70";
+
+        showToast("Tabel Data Pengamatan Otomatis Terisi!");
+      }
+    }
+
+    // =========================================================================
+    // PERTEMUAN 2: THREE.JS 3D PHYSICS ENGINE (ARCHIMEDES' PRINCIPLE & EGG)
+    // =========================================================================
+    function initP2Engine() {
+      const canvas = document.getElementById("canvasP2");
+      if (!canvas) return;
+
+      const container = canvas.parentElement;
+      const width = container.clientWidth;
+      const height = container.clientHeight;
+
+      simP2.scene = new THREE.Scene();
+      simP2.scene.background = new THREE.Color("#020617");
+
+      simP2.camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100);
+      simP2.camera.position.set(2.2, 0.8, 2.8);
+
+      simP2.renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true });
+      simP2.renderer.setSize(width, height);
+      simP2.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+      simP2.controls = new THREE.OrbitControls(simP2.camera, simP2.renderer.domElement);
+      simP2.controls.enableDamping = true;
+      simP2.controls.target.set(0, -0.2, 0);
+
+      // Lighting
+      const ambientLight = new THREE.AmbientLight("#ffffff", 0.7);
+      simP2.scene.add(ambientLight);
+
+      const dirLight = new THREE.DirectionalLight("#f59e0b", 1.2);
+      dirLight.position.set(5, 8, 5);
+      simP2.scene.add(dirLight);
+
+      // Glass Beaker Cylinder
+      const beakerGeo = new THREE.CylinderGeometry(0.7, 0.7, 1.8, 32, 1, true);
+      const beakerMat = new THREE.MeshPhysicalMaterial({
+        color: "#ffffff",
+        transparent: true,
+        opacity: 0.35,
+        roughness: 0.1,
+        transmission: 0.85
+      });
+      const beakerMesh = new THREE.Mesh(beakerGeo, beakerMat);
+      beakerMesh.position.y = -0.2;
+      simP2.scene.add(beakerMesh);
+
+      // Water inside Beaker
+      const waterGeo = new THREE.CylinderGeometry(0.68, 0.68, 1.5, 32);
+      const waterMat = new THREE.MeshStandardMaterial({
+        color: "#0284c7",
+        transparent: true,
+        opacity: 0.6,
+        roughness: 0.2
+      });
+      simP2.waterMesh = new THREE.Mesh(waterGeo, waterMat);
+      simP2.waterMesh.position.y = -0.35;
+      simP2.scene.add(simP2.waterMesh);
+
+      // Egg Mesh (Sphere stretched on Y)
+      const eggGeo = new THREE.SphereGeometry(0.18, 32, 32);
+      eggGeo.scale(1, 1.3, 1); // Stretched into egg shape
+      const eggMat = new THREE.MeshStandardMaterial({
+        color: "#fde68a", // Egg shell color
+        roughness: 0.4
+      });
+      simP2.eggMesh = new THREE.Mesh(eggGeo, eggMat);
+      simP2.eggMesh.position.set(0, -0.8, 0); // Initially at bottom (Tenggelam)
+      simP2.scene.add(simP2.eggMesh);
+
+      // Slider Event
+      const slider = document.getElementById("p2_salt_slider");
+      if (slider) {
+        slider.addEventListener("input", (e) => {
+          const val = parseFloat(e.target.value);
+          updateP2Physics(val);
+        });
+      }
+
+      updateP2Physics(0);
+      animateP2();
+    }
+
+    function updateP2Physics(saltGrams) {
+      document.getElementById("p2_salt_slider_val").innerText = saltGrams + " g";
+      document.getElementById("p2_hud_salt").innerText = saltGrams + " g";
+
+      // Density of water + salt
+      // 1 liter water (1000g). Adding salt increases density:
+      // rho_fluid = 1000 + (saltGrams * 2.2) kg/m3
+      const rhoFluid = 1000 + (saltGrams * 2.5);
+      const eggVolume = 0.00005; // m3 (50 cm3)
+      const eggMass = 0.055; // kg (55 grams) -> rho_egg = 1100 kg/m3
+      const W_egg = eggMass * GRAVITY; // 0.539 N
+      const FA = rhoFluid * GRAVITY * eggVolume;
+
+      // Determine position target inside beaker (y between -0.8 bottom and +0.3 top)
+      let statusStr = "TENGGELAM";
+      let statusColor = "#f43f5e";
+      let targetY = -0.8; // Bottom
+
+      if (rhoFluid < 1080) {
+        // Tenggelam
+        targetY = -0.8;
+        statusStr = "TENGGELAM";
+        statusColor = "#f43f5e";
+      } else if (rhoFluid >= 1080 && rhoFluid <= 1130) {
+        // Melayang
+        targetY = -0.3; // Floating in the middle of water
+        statusStr = "MELAYANG";
+        statusColor = "#f59e0b";
+      } else {
+        // Mengapung
+        targetY = 0.2; // Surface float
+        statusStr = "MENGAPUNG";
+        statusColor = "#10b981";
+      }
+
+      simP2.targetY = targetY;
+
+      // Update HUD
+      document.getElementById("p2_hud_rho").innerText = Math.round(rhoFluid) + " kg/m³";
+      document.getElementById("p2_hud_fa").innerText = FA.toFixed(2) + " N";
+
+      const statusElem = document.getElementById("p2_hud_status");
+      if (statusElem) {
+        statusElem.innerText = statusStr;
+        statusElem.style.color = statusColor;
+      }
+    }
+
+    function addSaltP2(grams) {
+      const slider = document.getElementById("p2_salt_slider");
+      if (slider) {
+        let current = parseFloat(slider.value);
+        let nextVal = Math.min(100, current + grams);
+        slider.value = nextVal;
+        updateP2Physics(nextVal);
+        showToast("Menambahkan " + grams + "g garam dapur.");
+      }
+    }
+
+    function stirP2() {
+      showToast("Mengaduk larutan garam...");
+      // Visual particle effect for stirring
+      for (let i = 0; i < 20; i++) {
+        const pGeo = new THREE.SphereGeometry(0.02, 8, 8);
+        const pMat = new THREE.MeshBasicMaterial({ color: "#ffffff", transparent: true, opacity: 0.9 });
+        const pMesh = new THREE.Mesh(pGeo, pMat);
+        pMesh.position.set((Math.random() - 0.5) * 0.8, -0.2 + (Math.random() - 0.5) * 0.8, (Math.random() - 0.5) * 0.8);
+        simP2.scene.add(pMesh);
+        setTimeout(() => { simP2.scene.remove(pMesh); }, 1200);
+      }
+    }
+
+    function captureDataP2() {
+      const salt = document.getElementById("p2_salt_slider").value;
+      const rho = document.getElementById("p2_hud_rho").innerText;
+      const fa = document.getElementById("p2_hud_fa").innerText;
+      const status = document.getElementById("p2_hud_status").innerText;
+
+      const tbody = document.getElementById("p2_table_body");
+      if (tbody) {
+        const row = document.createElement("tr");
+        row.className = "divide-y divide-slate-800";
+        row.innerHTML = `
+          <td class="p-3 font-semibold text-white">${salt} g</td>
+          <td class="p-3 font-mono text-cyan-300">${rho}</td>
+          <td class="p-3 font-mono text-emerald-400">${fa}</td>
+          <td class="p-3 font-mono text-amber-300">0.54 N</td>
+          <td class="p-3 font-mono text-slate-300">${simP2.eggMesh.position.y.toFixed(2)} m</td>
+          <td class="p-3 font-bold text-amber-400">${status}</td>
+        `;
+        tbody.appendChild(row);
+        showToast("Baris data Archimedes dicatat!");
+      }
+    }
+
+    function animateP2() {
+      requestAnimationFrame(animateP2);
+
+      if (simP2.controls) simP2.controls.update();
+
+      // Smooth Lerp motion for Egg Position (no teleporting!)
+      if (simP2.eggMesh) {
+        simP2.currentY += (simP2.targetY - simP2.currentY) * 0.05;
+        simP2.eggMesh.position.y = simP2.currentY;
+        simP2.eggMesh.rotation.z = Math.sin(Date.now() * 0.003) * 0.05; // gentle bobbing
+      }
+
+      if (simP2.renderer && simP2.scene && simP2.camera) {
+        simP2.renderer.render(simP2.scene, simP2.camera);
+      }
+    }
+
+    // =========================================================================
+    // PERTEMUAN 3: THREE.JS 3D PHYSICS ENGINE (PASCAL'S HYDRAULIC LIFT & CAR)
+    // =========================================================================
+    function initP3Engine() {
+      const canvas = document.getElementById("canvasP3");
+      if (!canvas) return;
+
+      const container = canvas.parentElement;
+      const width = container.clientWidth;
+      const height = container.clientHeight;
+
+      simP3.scene = new THREE.Scene();
+      simP3.scene.background = new THREE.Color("#020617");
+
+      simP3.camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100);
+      simP3.camera.position.set(3.0, 1.5, 4.0);
+
+      simP3.renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true });
+      simP3.renderer.setSize(width, height);
+      simP3.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+      simP3.controls = new THREE.OrbitControls(simP3.camera, simP3.renderer.domElement);
+      simP3.controls.enableDamping = true;
+      simP3.controls.target.set(0, 0, 0);
+
+      // Lighting
+      const ambientLight = new THREE.AmbientLight("#ffffff", 0.7);
+      simP3.scene.add(ambientLight);
+
+      const dirLight = new THREE.DirectionalLight("#a855f7", 1.2);
+      dirLight.position.set(5, 10, 5);
+      simP3.scene.add(dirLight);
+
+      // Small Cylinder Piston 1
+      const p1Geo = new THREE.CylinderGeometry(0.25, 0.25, 1.5, 32);
+      const p1Mat = new THREE.MeshStandardMaterial({ color: "#38bdf8", transparent: true, opacity: 0.7 });
+      simP3.piston1 = new THREE.Mesh(p1Geo, p1Mat);
+      simP3.piston1.position.set(-1.2, 0, 0);
+      simP3.scene.add(simP3.piston1);
+
+      // Large Cylinder Piston 2
+      const p2Geo = new THREE.CylinderGeometry(0.7, 0.7, 1.5, 32);
+      const p2Mat = new THREE.MeshStandardMaterial({ color: "#a855f7", transparent: true, opacity: 0.7 });
+      simP3.piston2 = new THREE.Mesh(p2Geo, p2Mat);
+      simP3.piston2.position.set(1.2, 0, 0);
+      simP3.scene.add(simP3.piston2);
+
+      // Connecting Hydraulic Pipe at base
+      const pipeGeo = new THREE.BoxGeometry(2.4, 0.3, 0.3);
+      const pipeMat = new THREE.MeshStandardMaterial({ color: "#0284c7" });
+      const pipeMesh = new THREE.Mesh(pipeGeo, pipeMat);
+      pipeMesh.position.set(0, -0.6, 0);
+      simP3.scene.add(pipeMesh);
+
+      // Car Mesh sitting on Piston 2
+      const carGroup = new THREE.Group();
+      const bodyGeo = new THREE.BoxGeometry(1.2, 0.5, 0.7);
+      const bodyMat = new THREE.MeshStandardMaterial({ color: "#ef4444" });
+      const carBody = new THREE.Mesh(bodyGeo, bodyMat);
+      carGroup.add(carBody);
+
+      // Car Roof
+      const roofGeo = new THREE.BoxGeometry(0.6, 0.35, 0.65);
+      const carRoof = new THREE.Mesh(roofGeo, bodyMat);
+      carRoof.position.set(-0.1, 0.4, 0);
+      carGroup.add(carRoof);
+
+      simP3.carMesh = carGroup;
+      simP3.carMesh.position.set(1.2, 0.95, 0);
+      simP3.scene.add(simP3.carMesh);
+
+      // Sliders listeners
+      ["p3_f1_slider", "p3_a1_slider", "p3_a2_slider"].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+          el.addEventListener("input", updateP3Physics);
+        }
+      });
+
+      updateP3Physics();
+      animateP3();
+    }
+
+    function updateP3Physics() {
+      const f1 = parseFloat(document.getElementById("p3_f1_slider").value);
+      const a1 = parseFloat(document.getElementById("p3_a1_slider").value);
+      const a2 = parseFloat(document.getElementById("p3_a2_slider").value);
+
+      document.getElementById("p3_f1_val").innerText = f1 + " N";
+      document.getElementById("p3_a1_val").innerText = a1.toFixed(2) + " m²";
+      document.getElementById("p3_a2_val").innerText = a2.toFixed(2) + " m²";
+
+      // Pascal Calculation: F2 = F1 * (A2 / A1)
+      const ratio = a2 / a1;
+      const f2 = f1 * ratio;
+
+      document.getElementById("p3_hud_f1").innerText = f1 + " N";
+      document.getElementById("p3_hud_ratio").innerText = ratio.toFixed(1) + "x";
+      document.getElementById("p3_hud_f2").innerText = Math.round(f2) + " N";
+    }
+
+    function pumpP3() {
+      // Pump stroke animation
+      simP3.p1Y = -0.3; // Push small piston down
+      simP3.targetP2Y = Math.min(1.2, simP3.targetP2Y + 0.25); // Push large piston & car up
+
+      document.getElementById("p3_hud_h").innerText = simP3.targetP2Y.toFixed(2) + " m";
+      showToast("Memompa piston hidrolik!");
+    }
+
+    function lowerP3() {
+      simP3.targetP2Y = Math.max(0, simP3.targetP2Y - 0.25);
+      document.getElementById("p3_hud_h").innerText = simP3.targetP2Y.toFixed(2) + " m";
+      showToast("Menurunkan tekanan sistem hidrolik.");
+    }
+
+    function captureDataP3() {
+      const f1 = document.getElementById("p3_f1_val").innerText;
+      const a1 = document.getElementById("p3_a1_val").innerText;
+      const a2 = document.getElementById("p3_a2_val").innerText;
+      const f2 = document.getElementById("p3_hud_f2").innerText;
+      const h = document.getElementById("p3_hud_h").innerText;
+
+      const tbody = document.getElementById("p3_table_body");
+      if (tbody) {
+        const count = tbody.children.length + 1;
+        const row = document.createElement("tr");
+        row.className = "divide-y divide-slate-800";
+        row.innerHTML = `
+          <td class="p-3 font-semibold text-white">#${count}</td>
+          <td class="p-3 font-mono text-sky-400">${f1}</td>
+          <td class="p-3 font-mono text-amber-300">${a1}</td>
+          <td class="p-3 font-mono text-purple-300">${a2}</td>
+          <td class="p-3 font-mono text-emerald-400 font-bold">${f2}</td>
+          <td class="p-3 font-mono text-slate-300">${h}</td>
+        `;
+        tbody.appendChild(row);
+        showToast("Data Pascal dicatat!");
+      }
+    }
+
+    function animateP3() {
+      requestAnimationFrame(animateP3);
+
+      if (simP3.controls) simP3.controls.update();
+
+      // Smooth piston motion
+      simP3.p1Y += (0 - simP3.p1Y) * 0.1; // return small piston up
+      if (simP3.piston1) simP3.piston1.position.y = simP3.p1Y;
+
+      simP3.p2Y += (simP3.targetP2Y - simP3.p3Y || 0) * 0.08;
+      simP3.p3Y = simP3.p2Y;
+
+      if (simP3.piston2) simP3.piston2.position.y = simP3.p2Y;
+      if (simP3.carMesh) simP3.carMesh.position.y = 0.95 + simP3.p2Y;
+
+      if (simP3.renderer && simP3.scene && simP3.camera) {
+        simP3.renderer.render(simP3.scene, simP3.camera);
+      }
+    }
+
+    function reset3DView(mod) {
+      if (mod === "p1" && simP1.camera) simP1.camera.position.set(2.8, 1.2, 3.5);
+      if (mod === "p2" && simP2.camera) simP2.camera.position.set(2.2, 0.8, 2.8);
+      if (mod === "p3" && simP3.camera) simP3.camera.position.set(3.0, 1.5, 4.0);
+      showToast("Posisi Kamera Direset.");
+    }
+
+    // =========================================================================
+    // WEBAR MARKERLESS WEBXR INTEGRATION
+    // =========================================================================
+    function startAR(mod) {
+      if (!navigator.xr) {
+        showToast("WebXR Web AR tidak didukung pada browser/perangkat ini. Menggunakan Mode 3D Interaktif.", false);
+        return;
+      }
+
+      navigator.xr.isSessionSupported('immersive-ar').then((supported) => {
+        if (supported) {
+          navigator.xr.requestSession('immersive-ar', { requiredFeatures: ['hit-test'] }).then((session) => {
+            xrSession = session;
+            showToast("Sesi Web AR Markerless Diaktifkan!");
+          });
+        } else {
+          showToast("Sesi Immersive AR tidak didukung. Kembali ke Mode 3D.", false);
+        }
+      });
+    }
+
+    function saveModuleData(mod) {
+      saveAllData();
+      showToast("Data Modul " + mod.toUpperCase() + " berhasil tersimpan!");
+    }
+
+    function exportJSON() {
+      gatherFormInputs();
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(appData, null, 2));
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", "LKPD_Fluida_Statis_AlyaSyahrani.json");
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+      showToast("File Ringkasan LKPD berhasil diunduh!");
+    }
+
+    function saveAllAndFinish() {
+      saveAllData();
+      showToast("LKPD Fluida Statis telah SELESAI dan seluruh jawaban tersimpan!");
+    }
+  </script>
+</body>
+</html>
